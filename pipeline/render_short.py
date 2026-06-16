@@ -36,7 +36,12 @@ def render_vertical_short(
     if not image_paths:
         raise ValueError("No images")
     if not shutil.which("ffmpeg"):
-        raise RuntimeError("ffmpeg not found; install it (brew install ffmpeg)")
+        raise RuntimeError(
+            "ffmpeg not found. "
+            "Ubuntu/GitHub Actions: sudo apt-get install ffmpeg  "
+            "macOS: brew install ffmpeg  "
+            "Windows: winget install ffmpeg"
+        )
 
     out_video = Path(out_video)
     out_video.parent.mkdir(parents=True, exist_ok=True)
@@ -60,6 +65,7 @@ def render_vertical_short(
                 str(dst),
             ],
             check=True,
+            timeout=120,
         )
 
     # ── 2. Generate zoompan clips ────────────────────────────────────
@@ -89,6 +95,7 @@ def render_vertical_short(
                 str(clip),
             ],
             check=True,
+            timeout=300,
         )
 
     # ── 3. Prepare subtitles + font ──────────────────────────────────
@@ -160,7 +167,7 @@ def render_vertical_short(
         "-movflags", "+faststart",
         str(out_video.resolve()),
     ]
-    subprocess.run(cmd, check=True, cwd=str(tmp))
+    subprocess.run(cmd, check=True, cwd=str(tmp), timeout=600)
 
     # ── cleanup ──────────────────────────────────────────────────────
     shutil.rmtree(tmp, ignore_errors=True)

@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import TypedDict
 
+import edge_tts
+
 VOICE = "en-US-ChristopherNeural"
 
 
@@ -32,8 +34,6 @@ def _ffprobe_duration(path: Path) -> float:
 async def _synthesize_with_timing(
     text: str, out_path: Path, voice: str,
 ) -> list[SentenceTiming]:
-    import edge_tts
-
     communicate = edge_tts.Communicate(text, voice)
     sentences: list[SentenceTiming] = []
 

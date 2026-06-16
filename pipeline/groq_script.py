@@ -283,7 +283,14 @@ def _call_groq(
     *,
     temperature: float = 0.85,
 ) -> dict[str, Any]:
-    client = Groq(api_key=os.environ["GROQ_API_KEY"])
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY is not set. "
+            "Local: add it to your .env file. "
+            "GitHub Actions: add it as a repository secret named GROQ_API_KEY."
+        )
+    client = Groq(api_key=api_key)
     resp = client.chat.completions.create(
         model=GROQ_MODEL,
         messages=[
