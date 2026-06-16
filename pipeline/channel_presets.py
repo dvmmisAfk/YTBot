@@ -42,6 +42,8 @@ class ChannelPreset(TypedDict, total=False):
     yt_token_env: str
     # Extra uploads: same MP4 uploaded to additional channels using these env var names
     extra_yt_token_envs: list[str]
+    # Channel-specific hashtags appended to every description (no # prefix needed)
+    description_hashtags: list[str]
 
 
 PRESETS: dict[str, ChannelPreset] = {
@@ -101,6 +103,10 @@ PRESETS: dict[str, ChannelPreset] = {
             "stylized, flat colors, low quality, blurry, watermark, logo, text, signature, "
             "deformed, ugly, extra limbs, mutated"
         ),
+        "description_hashtags": [
+            "Facts", "DidYouKnow", "MindBlowing", "InterestingFacts",
+            "Science", "Knowledge", "LearnOnTikTok",
+        ],
         "topic_pool": [
             # Space & Universe
             "black holes", "neutron stars", "Mars mysteries", "Moon secrets", "exoplanets",
@@ -212,6 +218,10 @@ PRESETS: dict[str, ChannelPreset] = {
         "caption_font_name": "Noto Sans Devanagari",
         "yt_token_env": "YT_REFRESH_TOKEN_MYTH",
         "extra_yt_token_envs": ["YT_REFRESH_TOKEN_MYTH_2"],
+        "description_hashtags": [
+            "HinduMythology", "Mythology", "BhaktiShorts",
+            "HindiShorts", "Bhakti", "Devotional", "IndianMythology",
+        ],
         "groq_system_hint": (
             "You write respectful Hindi Shorts about Indian mythology, epics, and devotion — for a general audience. "
             "LANGUAGE: full_narration, youtube_title, youtube_description entirely in Devanagari Hindi. "
@@ -237,6 +247,10 @@ PRESETS: dict[str, ChannelPreset] = {
     "school_story": {
         "id": "school_story",
         "label": "School drama / storytime Short",
+        "description_hashtags": [
+            "SchoolStory", "Storytime", "SchoolDrama",
+            "HighSchool", "TeenStory", "Relatable",
+        ],
         "groq_system_hint": (
             "You write fictional school storytime Shorts. Tone: suspense + heart. "
             "Characters are original (no copyrighted names). Hook in line 1. "
@@ -259,6 +273,10 @@ PRESETS: dict[str, ChannelPreset] = {
     "psych_tradeoff": {
         "id": "psych_tradeoff",
         "label": "Psychology / habits (non-clinical)",
+        "description_hashtags": [
+            "Psychology", "Mindset", "SelfImprovement",
+            "Habits", "MentalHealth", "Motivation", "PersonalGrowth",
+        ],
         "groq_system_hint": (
             "You write Shorts about habits, motivation, and everyday psychology. "
             "Never diagnose or claim medical facts. Use 'some people' / 'research suggests' carefully. "
@@ -281,6 +299,10 @@ PRESETS: dict[str, ChannelPreset] = {
     "history_micro": {
         "id": "history_micro",
         "label": "One moment in history",
+        "description_hashtags": [
+            "History", "HistoryFacts", "AncientHistory",
+            "HistoricalFacts", "WTFHistory", "TodayInHistory",
+        ],
         "groq_system_hint": (
             "You write one tight historical anecdote per Short. Pick public-domain or widely taught events. "
             "No graphic violence. End with why it matters in one line."
@@ -303,6 +325,10 @@ PRESETS: dict[str, ChannelPreset] = {
         "id": "ghost_stories",
         "label": "Ghost / horror storytime Short",
         "min_words": 100,
+        "description_hashtags": [
+            "GhostStory", "Horror", "Scary", "Storytime",
+            "SpookyStory", "HorrorShorts", "CreepyStory",
+        ],
         "groq_system_hint": (
             "You write spooky ghost story Shorts for YouTube. "
             "CRITICAL LENGTH RULE: The TOTAL word count across ALL 6 segments MUST be 120-140 words. "

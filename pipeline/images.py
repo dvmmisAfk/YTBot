@@ -1,15 +1,18 @@
-"""Image generation via DeAPI.ai (async: submit → poll → download)."""
+"""Image generation: DeAPI.ai (paid) or Pollinations.ai (free, no key needed)."""
 from __future__ import annotations
 
 import os
 import random
 import time
+import urllib.parse
 from pathlib import Path
 
 import httpx
 
 DEAPI_SUBMIT_URL = "https://api.deapi.ai/api/v1/client/txt2img"
 DEAPI_POLL_URL = "https://api.deapi.ai/api/v1/client/request-status"
+
+POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 
 STYLE_SUFFIX = (
     ", cinematic digital illustration, detailed scene art, strong composition, "
@@ -112,6 +115,36 @@ def _deapi_generate(
         raise RuntimeError(f"DeAPI timed out after {max_polls} polls for {request_id}")
 
 
+def _pollinations_generate(
+    prompt: str,
+    *,
+    width: int,
+    height: int,
+    seed: int | None = None,
+    retries: int = 3,
+) -> bytes:
+    """Fetch an image from Pollinations.ai — completely free, no API key."""
+    encoded = urllib.parse.quote(prompt)
+    s = seed if seed is not None else random.randint(1, 999999)
+    url = (
+        f"https://image.pollinations.ai/prompt/{encoded}"
+        f"?width={width}&height={height}&seed={s}&nologo=true&enhance=false"
+    )
+    with httpx.Client(timeout=120.0) as client:
+        for attempt in range(1, retries + 1):
+            try:
+                resp = client.get(url)
+                resp.raise_for_status()
+                return resp.content
+            except Exception as exc:
+                if attempt == retries:
+                    raise
+                wait = 5 * attempt
+                print(f"      Pollinations retry {attempt}/{retries} after {wait}s: {exc}")
+                time.sleep(wait)
+    raise RuntimeError("Pollinations: all retries exhausted")
+
+
 def save_scene_image(
     index: int,
     prompt: str,
@@ -121,24 +154,34 @@ def save_scene_image(
     height: int = 768,
     negative: str = DEFAULT_NEGATIVE,
 ) -> tuple[str, str]:
-    """Generate and save one image. Returns (status, detail)."""
-    api_key = os.environ.get("DEAPI_TOKEN", "").strip()
-    if not api_key:
-        return "fail", "DEAPI_TOKEN not set"
+    """Generate and save one image. Returns (status, detail).
 
-    model = os.environ.get("DEAPI_MODEL", "Flux_2_Klein_4B_BF16")
+    Uses DeAPI if DEAPI_TOKEN is set, otherwise falls back to Pollinations.ai (free).
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    api_key = os.environ.get("DEAPI_TOKEN", "").strip()
+
+    if api_key:
+        model = os.environ.get("DEAPI_MODEL", "Flux_2_Klein_4B_BF16")
+        try:
+            img_bytes = _deapi_generate(
+                prompt,
+                api_key=api_key,
+                width=width,
+                height=height,
+                model=model,
+            )
+            out_path.write_bytes(img_bytes)
+            return "ok", "deapi"
+        except Exception as e:
+            print(f"      DeAPI failed, falling back to Pollinations: {e}")
+
+    # Free fallback — no key needed
     try:
-        img_bytes = _deapi_generate(
-            prompt,
-            api_key=api_key,
-            width=width,
-            height=height,
-            model=model,
-        )
+        img_bytes = _pollinations_generate(prompt, width=width, height=height)
         out_path.write_bytes(img_bytes)
-        return "ok", "deapi"
+        return "ok", "pollinations"
     except Exception as e:
         return "fail", str(e)

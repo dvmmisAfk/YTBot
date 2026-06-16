@@ -41,6 +41,12 @@ def _lang_label(lang: str) -> str:
     return {"en": "English", "hi": "Hindi (Devanagari script)"}.get(lang, lang)
 
 
+def _build_hashtag_string(preset: ChannelPreset) -> str:
+    tags = preset.get("description_hashtags") or []
+    base = " ".join(f"#{t}" for t in tags)
+    return f"{base} #Shorts #YouTubeShorts".strip()
+
+
 def generate_short_pack(
     preset: ChannelPreset,
     *,
@@ -75,6 +81,7 @@ def generate_short_pack(
 def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]:
     language = (preset.get("language") or "en").lower()
     lo, hi, blurb = LANG_WORD_TARGETS.get(language, LANG_WORD_TARGETS["en"])
+    hashtag_str = _build_hashtag_string(preset)
 
     if language == "hi":
         narration_rule = (
@@ -98,7 +105,7 @@ def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]
 Return ONLY valid JSON with this shape:
 {{
   "youtube_title": "short catchy title, under 90 chars, no hashtags",
-  "youtube_description": "2-3 sentences plus optional #Shorts at end",
+  "youtube_description": "Line 1: one hook sentence with a relevant emoji that teases the story (under 80 chars). Line 2: blank. Line 3-4: 2 sentences of context or what the viewer will discover. Line 5: blank. Line 6: exactly this hashtag block (copy verbatim): {hashtag_str}",
   {narration_rule},
   "image_prompts": [
     "visual description for image 1: setting, subject, action. No style words. No text in image.",
@@ -163,6 +170,7 @@ STRICT RULES:
 def _generate_multivariant(
     preset: ChannelPreset, user: str, n: int, variants: list,
 ) -> dict[str, Any]:
+    hashtag_str = _build_hashtag_string(preset)
     # Build the per-language requirement lines
     lang_lines = []
     for v in variants:
@@ -171,7 +179,9 @@ def _generate_multivariant(
         lang_lines.append(
             f'    "{lang}": {{\n'
             f'      "youtube_title": "catchy title in {_lang_label(lang)} (<90 chars, no hashtags)",\n'
-            f'      "youtube_description": "2-3 sentences in {_lang_label(lang)} + optional #Shorts",\n'
+            f'      "youtube_description": "Line 1: hook sentence with emoji in {_lang_label(lang)} (<80 chars). '
+            f'Line 2: blank. Line 3-4: 2 context sentences in {_lang_label(lang)}. '
+            f'Line 5: blank. Line 6: copy verbatim: {hashtag_str}",\n'
             f'      "full_narration": "ONE continuous paragraph in {_lang_label(lang)}. '
             f'{blurb}. Natural spoken narration, no segment markers."\n'
             f'    }}'
