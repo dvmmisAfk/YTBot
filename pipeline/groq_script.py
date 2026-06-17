@@ -21,10 +21,10 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 # ── Language-specific word-count guidance ──────────────────────────────
 LANG_WORD_TARGETS = {
     "en": (
-        120,
-        155,
-        "120-155 English words for variants.en.full_narration (~40-50 sec); "
-        "add transitions, examples, and a closing takeaway — NOT a bullet list",
+        150,
+        185,
+        "150-185 English words (~45-55 sec spoken aloud); "
+        "full continuous narration with a strong hook, building tension, and a chilling final line — NOT a bullet list",
     ),
     "hi": (
         135,
@@ -34,7 +34,7 @@ LANG_WORD_TARGETS = {
 }
 
 # Bilingual presets override per variant; these are fallbacks only.
-DEFAULT_MIN_WORDS = {"hi": 80, "en": 80}
+DEFAULT_MIN_WORDS = {"hi": 80, "en": 120}
 
 
 def _lang_label(lang: str) -> str:

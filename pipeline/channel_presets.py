@@ -43,7 +43,7 @@ PRESETS: dict[str, ChannelPreset] = {
     "ghost_stories": {
         "id": "ghost_stories",
         "label": "Ghost / horror storytime Short",
-        "min_words": 130,
+        "min_words": 120,
         "tts_voice": "en-US-ChristopherNeural",
         "caption_font": "CreepsterCaps.ttf",
         "caption_font_name": "Creepster",
