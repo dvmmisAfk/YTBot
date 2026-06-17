@@ -1,7 +1,6 @@
 """Channel niches: system prompt + defaults for Groq script generation.
 
-Each preset includes a topic_pool — a list of setting/situation ideas.
-One is picked randomly per run if no --topic is provided, ensuring variety.
+Only the ghost_stories niche is active. All other presets have been removed.
 """
 
 from __future__ import annotations
@@ -11,371 +10,170 @@ from typing import TypedDict
 
 class Variant(TypedDict, total=False):
     """One output variant — same images, different audio/subs/upload target."""
-    lang: str  # "en", "hi", etc. used as key in Groq response
-    label: str  # human-readable for logs
-    tts_voice: str  # Edge TTS voice (e.g. "hi-IN-MadhurNeural")
-    caption_font: str  # font filename inside assets/fonts/
-    caption_font_name: str  # FFmpeg-visible font family name
-    yt_token_env: str  # env var name for YouTube refresh token (e.g. "YT_REFRESH_TOKEN_HI")
-    min_words: int  # min word count for narration validation
+    lang: str
+    label: str
+    tts_voice: str
+    caption_font: str
+    caption_font_name: str
+    yt_token_env: str
+    min_words: int
 
 
 class ChannelPreset(TypedDict, total=False):
     id: str
     label: str
     groq_system_hint: str
-    segment_count: int  # images + script beats
+    segment_count: int
     topic_pool: list[str]
-    image_style_suffix: str  # appended to every image prompt
-    image_negative_prompt: str  # passed as negative prompt
-    # Single-variant fields (backward compat — used when `variants` is absent):
+    image_style_suffix: str
+    image_negative_prompt: str
     language: str
     tts_voice: str
     caption_font: str
     caption_font_name: str
-    min_words: int  # min word count for narration validation (single-variant)
-    # Multi-variant mode — Groq returns translations for each lang, pipeline renders+uploads per variant.
+    min_words: int
     variants: list[Variant]
-    # topic_rotation: "myth" → pipeline/myth_topics.py (IST day theme + no-repeat within theme)
     topic_rotation: str
-    # Single-variant YouTube upload: which env var holds this channel's refresh token
     yt_token_env: str
-    # Extra uploads: same MP4 uploaded to additional channels using these env var names
     extra_yt_token_envs: list[str]
-    # Channel-specific hashtags appended to every description (no # prefix needed)
     description_hashtags: list[str]
 
 
 PRESETS: dict[str, ChannelPreset] = {
-    "facts": {
-        "id": "facts",
-        "label": "Mind-blowing facts Short (bilingual — Hindi + English)",
-        "variants": [
-            {
-                "lang": "hi",
-                "label": "Hindi",
-                "tts_voice": "hi-IN-MadhurNeural",
-                "caption_font": "NotoSansDevanagari-Bold.ttf",
-                "caption_font_name": "Noto Sans Devanagari",
-                "yt_token_env": "YT_REFRESH_TOKEN_HI",
-                "min_words": 80,
-            },
-            {
-                "lang": "en",
-                "label": "English",
-                "tts_voice": "en-US-GuyNeural",
-                "caption_font": "BebasNeue-Regular.ttf",
-                "caption_font_name": "Bebas Neue",
-                "yt_token_env": "YT_REFRESH_TOKEN_EN",
-                "min_words": 70,
-            },
-        ],
-        "groq_system_hint": (
-            "You write punchy YouTube Shorts about surprising, verified facts — in MULTIPLE languages. "
-            "The same fact will be published as separate videos on different language channels. "
-            "STRUCTURE: hook fact in opening, supporting facts in the middle, punchline + takeaway at end. "
-            "TONE: energetic, curious, confident. No clickbait lies. "
-            "Each fact must be broadly accurate; if unsure, use safer wording like "
-            "'scientists believe' or 'some research suggests'. "
-            "No medical advice. No hashtags inside narration. Original phrasing only. "
-            "IMAGE PROMPT RULE: write image prompts in ENGLISH only. Describe real photographs or documentary stills. "
-            "Use real-world subjects, real lighting, real environments. NEVER write 'cartoon', 'illustration', "
-            "'anime', or 'stylized'. Examples: 'a real octopus underwater in clear blue ocean, sunlight rays', "
-            "'close-up macro photo of a honeybee on a yellow flower', "
-            "'wide shot of Saturn V rocket launching at night with flames'. "
-            "BILINGUAL RULE: the SAME story/facts must be expressed naturally in each language — "
-            "do not literally translate word-for-word; rephrase so each version sounds native and flows well. "
-            "HINDI LENGTH: variants.hi.full_narration should be long-form — "
-            "aim ~150 Devanagari words (acceptable band roughly 135-170) with rich detail and connective phrases "
-            "so the Hindi voiceover is substantial (~55-70 seconds). "
-            "ENGLISH LENGTH: variants.en.full_narration must be long-form too — "
-            "aim 120-155 English words (never a short teaser); include hook, 3-4 developed beats with examples, "
-            "and a strong closing line so the English voiceover is ~40-50 seconds."
-        ),
-        "segment_count": 5,
-        "image_style_suffix": (
-            ", photorealistic documentary photography, cinematic lighting, ultra detailed, "
-            "8k, sharp focus, professional camera, National Geographic style, realistic textures, "
-            "natural colors, depth of field, no text, no captions, no watermark, no logos"
-        ),
-        "image_negative_prompt": (
-            "cartoon, anime, illustration, painting, drawing, sketch, 3d render, cgi, "
-            "stylized, flat colors, low quality, blurry, watermark, logo, text, signature, "
-            "deformed, ugly, extra limbs, mutated"
-        ),
-        "description_hashtags": [
-            "Facts", "DidYouKnow", "MindBlowing", "InterestingFacts",
-            "Science", "Knowledge", "LearnOnTikTok",
-        ],
-        "topic_pool": [
-            # Space & Universe
-            "black holes", "neutron stars", "Mars mysteries", "Moon secrets", "exoplanets",
-            "the Big Bang", "dark matter", "the asteroid belt", "Saturn's rings",
-            "Jupiter's storms", "sounds in space", "dead stars", "parallel universes",
-            "time dilation", "cosmic radiation", "space colonies", "SETI and alien signals",
-            "the Voyager probe", "sun facts", "galaxy collisions", "space weather",
-            "quantum physics weirdness", "multiverse theory", "wormholes",
-            "the edge of the observable universe",
-            # Animals & Nature
-            "deep sea creatures", "parasites that control minds", "animal superpowers",
-            "extinct animals", "animals that basically can't die",
-            "venomous creatures of India", "crow intelligence", "the octopus brain",
-            "the mantis shrimp", "tardigrades", "animal sleep habits", "migration mysteries",
-            "camouflage masters", "animals that mourn their dead", "bioluminescence",
-            "carnivorous plants", "fungi intelligence", "ant colonies", "whale communication",
-            "spider silk science", "the immortal jellyfish", "animal self-medication",
-            "dolphin language", "electric eels", "naked mole rats", "bird navigation",
-            "snake facts", "insects you didn't know exist", "animals in Indian forests",
-            "microorganisms living in your body",
-            # Human Body & Psychology
-            "brain illusions", "the science of sleep paralysis", "memory tricks",
-            "the placebo effect", "pain tolerance", "human senses you didn't know about",
-            "DNA secrets", "the gut-brain connection", "adrenaline effects",
-            "the subconscious mind", "phobias explained", "the science of dreams",
-            "body language secrets", "why we laugh", "human evolution oddities",
-            "the science of aging", "near-death experiences", "hypnosis facts",
-            "déjà vu explained", "emotional memory", "synesthesia", "muscle memory",
-            "the fear response", "the science of addiction", "human body record breakers",
-            # History & Civilizations
-            "Ancient Egypt secrets", "dark facts about the Roman Empire", "lost civilizations",
-            "medieval torture devices", "ancient Indian empires", "Mughal secrets",
-            "forgotten inventions", "unknown facts about World War 2", "Cold War spy stories",
-            "Greek myths debunked", "real Viking history", "the Aztec civilization",
-            "the Indus Valley mystery", "the Maurya Empire", "the Chola naval empire",
-            "the history of slavery", "ancient medicines", "the oldest cities on Earth",
-            "ancient trade routes", "Genghis Khan facts", "the real Cleopatra",
-            "Alexander the Great", "dark facts about British India",
-            "untold partition of India stories", "ancient Chinese secrets",
-            "the real life of samurai", "real pirate history", "the Byzantine Empire",
-            "the Ottoman Empire", "ancient astronomy",
-            # India Specific
-            "India's unsolved mysteries", "cursed places in India",
-            "unknown Indian inventions", "weird Indian laws",
-            "dark stories from Indian mythology", "haunted forts of India",
-            "untold Indian freedom fighters", "India's richest kings in history",
-            "origin stories of Indian street food", "India's rarest animals",
-            "Indian space program facts", "the engineering of ancient temples",
-            "India's tribal cultures", "Bollywood dark secrets",
-            "India's geographical oddities", "mysteries of Indian rivers",
-            "Indian martial arts", "underground cities of India",
-            "India's hottest and coldest places", "facts about Indian languages",
-            # Money & Power
-            "the richest people in history", "how billionaires think",
-            "the dark side of corporations", "famous stock market crashes",
-            "consequences of money printing", "heists gone wrong",
-            "underground economies", "tax havens explained",
-            "the richest countries in history", "failed currencies",
-            "the gold standard", "dark stories from crypto", "the mafia economy",
-            "war profiteering", "untold stories of India's richest businessmen",
-            "how banks really work", "money psychology", "poverty traps",
-            "famous economic collapses", "the dark side of diamonds",
-            # Science & Tech
-            "when AI went wrong", "internet dark secrets", "nuclear energy facts",
-            "genetic engineering", "CRISPR experiments", "lab-grown meat",
-            "deepfake technology", "social media algorithms", "dark web facts",
-            "surveillance technology", "robot evolution", "battery technology secrets",
-            "shocking climate science facts", "plastic in the human body",
-            "microwave radiation", "5G facts vs myths", "quantum computing",
-            "the history of bioweapons", "chemical reactions gone wrong",
-            "future technology predictions",
-            # Food & Substances
-            "foods your brain is addicted to", "the dark side of sugar",
-            "fast food secrets", "spices that changed history",
-            "poisonous foods we eat daily", "the science of fermentation",
-            "caffeine deep dive", "the science of alcohol",
-            "the spiciest things on Earth", "food frauds worldwide",
-            "ancient recipes still used today", "rare foods only the rich eat",
-            "the history of Indian spices", "foods banned around the world",
-            "GMO food facts",
-            # Crime & Dark Secrets
-            "unsolved murders", "serial killer psychology",
-            "cults that shocked the world", "government experiments on humans",
-            "corporate cover-ups", "art heists", "counterfeit economies",
-            "organized crime facts", "famous prison escapes",
-            "cold cases solved by DNA", "the biggest cyber crimes ever",
-            "assassination plots", "whistleblower stories",
-            "the dark side of Hollywood", "scams that fooled millions",
-            "human trafficking networks", "drug cartel economics",
-            "facts about corrupt governments", "identity theft stories",
-            "history of con artists",
-            # Wildcards
-            "dreams that predicted the future", "coincidences too weird to be real",
-            "things banned in other countries", "phobias with unpronounceable names",
-            "world records that sound fake", "the science of optical illusions",
-            "superstitions with real origins", "things that didn't exist 20 years ago",
-            "urban legends debunked", "numbers with dark histories",
-        ],
-    },
-    "hindi_myth": {
-        "id": "hindi_myth",
-        "label": "Hindi mythology & devotion Shorts (Ganesha → Shiva → … by IST day)",
-        "topic_rotation": "myth",
-        "language": "hi",
-        "min_words": 100,
-        # Edge TTS Hindi: Swara = warm female (common for katha / devotion). Override: hi-IN-MadhurNeural (male).
-        "tts_voice": "hi-IN-SwaraNeural",
-        "caption_font": "NotoSansDevanagari-Bold.ttf",
-        "caption_font_name": "Noto Sans Devanagari",
-        "yt_token_env": "YT_REFRESH_TOKEN_MYTH",
-        "extra_yt_token_envs": ["YT_REFRESH_TOKEN_MYTH_2"],
-        "description_hashtags": [
-            "HinduMythology", "Mythology", "BhaktiShorts",
-            "HindiShorts", "Bhakti", "Devotional", "IndianMythology",
-        ],
-        "groq_system_hint": (
-            "You write respectful Hindi Shorts about Indian mythology, epics, and devotion — for a general audience. "
-            "LANGUAGE: full_narration, youtube_title, youtube_description entirely in Devanagari Hindi. "
-            "IMAGE PROMPTS: English only — cinematic scene descriptions (no text in image). "
-            "CRITICAL LENGTH: full_narration 105-135 Devanagari words (~40-50 sec spoken). "
-            "Tone: warm, storytelling, reverent — NOT mocking faith. Retell traditional narratives in your own words; "
-            "do not copy long scripture passages. PG-13, no graphic gore, no hate toward any group. "
-            "No hashtags in narration. The creator gives a specific story angle in the user message — stay on that topic."
-        ),
-        "segment_count": 6,
-        "image_style_suffix": (
-            ", cinematic Indian mythology digital painting, golden hour lighting, rich jewel tones, "
-            "detailed divine atmosphere, epic composition, respectful devotional art style, "
-            "high quality illustration, no text, no watermark, no logos"
-        ),
-        "image_negative_prompt": (
-            "photorealistic human face close-up as real celebrity, gore, blood, horror jumpscare, "
-            "disrespectful parody, political symbols, watermark, text, logo, blurry, low quality, "
-            "multiple conflicting styles, broken anatomy"
-        ),
-        "topic_pool": [],
-    },
-    "school_story": {
-        "id": "school_story",
-        "label": "School drama / storytime Short",
-        "description_hashtags": [
-            "SchoolStory", "Storytime", "SchoolDrama",
-            "HighSchool", "TeenStory", "Relatable",
-        ],
-        "groq_system_hint": (
-            "You write fictional school storytime Shorts. Tone: suspense + heart. "
-            "Characters are original (no copyrighted names). Hook in line 1. "
-            "Build to one memorable twist. Keep each kid-safe."
-        ),
-        "segment_count": 5,
-        "topic_pool": [
-            "the new kid nobody noticed",
-            "a locker that wouldn't open",
-            "a substitute teacher with a secret",
-            "the lost lunchbox mystery",
-            "a field trip gone strange",
-            "the science fair disaster",
-            "a friendship bracelet with a twist",
-            "a school play that went wrong",
-            "the detention room incident",
-            "a letter passed in class",
-        ],
-    },
-    "psych_tradeoff": {
-        "id": "psych_tradeoff",
-        "label": "Psychology / habits (non-clinical)",
-        "description_hashtags": [
-            "Psychology", "Mindset", "SelfImprovement",
-            "Habits", "MentalHealth", "Motivation", "PersonalGrowth",
-        ],
-        "groq_system_hint": (
-            "You write Shorts about habits, motivation, and everyday psychology. "
-            "Never diagnose or claim medical facts. Use 'some people' / 'research suggests' carefully. "
-            "Practical tips only."
-        ),
-        "segment_count": 5,
-        "topic_pool": [
-            "why procrastination actually happens",
-            "the 2-minute rule for habits",
-            "why we care what strangers think",
-            "how your morning sets your day",
-            "the truth about motivation",
-            "why boredom is good for you",
-            "the psychology of saying no",
-            "why small wins matter",
-            "how overthinking actually hurts",
-            "the real reason we scroll endlessly",
-        ],
-    },
-    "history_micro": {
-        "id": "history_micro",
-        "label": "One moment in history",
-        "description_hashtags": [
-            "History", "HistoryFacts", "AncientHistory",
-            "HistoricalFacts", "WTFHistory", "TodayInHistory",
-        ],
-        "groq_system_hint": (
-            "You write one tight historical anecdote per Short. Pick public-domain or widely taught events. "
-            "No graphic violence. End with why it matters in one line."
-        ),
-        "segment_count": 5,
-        "topic_pool": [
-            "a lesser-known ancient invention",
-            "a moment that almost changed history",
-            "an underrated figure from ancient times",
-            "a coincidence that shaped a war",
-            "a forgotten discovery at sea",
-            "an ancient ruler's unexpected habit",
-            "a medieval tradition nobody remembers",
-            "a natural disaster that changed a city",
-            "a lost city that was finally found",
-            "an accidental scientific breakthrough",
-        ],
-    },
     "ghost_stories": {
         "id": "ghost_stories",
         "label": "Ghost / horror storytime Short",
-        "min_words": 100,
+        "min_words": 130,
+        "tts_voice": "en-US-ChristopherNeural",
+        "caption_font": "CreepsterCaps.ttf",
+        "caption_font_name": "Creepster",
+        "yt_token_env": "YT_REFRESH_TOKEN",
         "description_hashtags": [
             "GhostStory", "Horror", "Scary", "Storytime",
             "SpookyStory", "HorrorShorts", "CreepyStory",
+            "GhostStories", "ScaryStory", "HorrorStorytime",
         ],
         "groq_system_hint": (
-            "You write spooky ghost story Shorts for YouTube. "
-            "CRITICAL LENGTH RULE: The TOTAL word count across ALL 6 segments MUST be 120-140 words. "
-            "Each segment narration = 2-3 sentences, about 20-25 words per segment. "
-            "This produces 35-45 seconds of audio when read aloud. "
-            "Tone: eerie, suspenseful, creepy but NOT gory or violent. "
-            "Segment 1: hook that stops scrolling. Last segment: chilling twist or unanswered question. "
-            "All stories fictional. Original characters. PG-13. No hashtags in narration."
+            "You are a master horror storyteller for YouTube Shorts. Your ghost stories are gripping, "
+            "atmospheric, and genuinely unsettling — they stop scrolling and leave viewers with chills.\n\n"
+
+            "STORY CRAFT:\n"
+            "• Open MID-SCENE — no preamble. First line creates immediate unease. "
+            "\"The door at the end of the hall opened on its own again.\" "
+            "Never start with 'Today I want to tell you...'\n"
+            "• Use SPECIFIC, REAL details: give characters real names, use exact times ('3:14 AM'), "
+            "name exact places ('Room 217', 'Maple Grove Road'). Specificity creates believability.\n"
+            "• Build dread through SENSORY DETAILS — the cold spot, the smell of damp earth, "
+            "the sound of breathing behind a wall. Don't name the monster; describe its effects.\n"
+            "• PACING: Short punchy sentences = fast heartbeat tension. Long slow sentences = suffocating dread. "
+            "Alternate deliberately.\n"
+            "• NEVER explain the supernatural — ambiguity is horror's most powerful tool.\n"
+            "• ENDING (most important): Final 1-2 sentences must land a chill. An unanswered question, "
+            "a dark realization, or a twist that recontextualizes everything. The last word should echo.\n\n"
+
+            "TONE: Eerie, dread-filled, atmospheric. NOT gory, NOT explicit violence. "
+            "PG-13 horror — psychological, not physical. Original characters only. No hashtags in narration.\n\n"
+
+            "CRITICAL LENGTH: full_narration MUST be 150-180 English words. "
+            "This creates 45-55 seconds of audio. Count carefully — never go below 150 words.\n\n"
+
+            "IMAGE PROMPTS: Write 7 cinematic horror scene descriptions in English only. "
+            "Each should capture a DIFFERENT moment and visual element — vary between: "
+            "wide establishing shots of the haunted location, medium shots of the character reacting, "
+            "close-ups of the horrifying detail, the entity partially revealed, the discovery, the aftermath. "
+            "Every image should feel like a still from a horror film."
         ),
-        "segment_count": 6,
+        "segment_count": 7,
         "image_style_suffix": (
-            ", dark spooky cartoon illustration, eerie atmosphere, creepy stylized art, "
-            "bold outlines, muted haunting colors, horror cartoon aesthetic, ghostly shadows, "
-            "dramatic lighting, sinister mood, professional youtube thumbnail quality, "
-            "no text, no captions, no watermark, no logos"
+            ", dark atmospheric horror illustration, deep shadows with single eerie light source, "
+            "muted desaturated palette with pops of sickly pale green or cold blue, "
+            "thick bold outlines, ghostly translucent figures, dramatic chiaroscuro lighting, "
+            "sinister oppressive mood, professional horror storybook art quality, "
+            "cinematic composition, high contrast, no text, no watermark, no logos"
         ),
         "image_negative_prompt": (
-            "photorealistic, photograph, happy cheerful bright, anime eyes, blurry, "
+            "photorealistic, photograph, happy, cheerful, bright, colorful, anime eyes, blurry, "
             "low quality, watermark, logo, text, title, signature, ugly, grainy, "
-            "gore, blood, nudity, child-unsafe"
+            "gore, blood, nudity, child-unsafe, cartoon mascot, cute"
         ),
         "topic_pool": [
-            "a ghost haunting an empty school at night",
-            "a strange presence in a family home",
-            "something unexplained during a picnic in the woods",
-            "a ghost encounter at a friend's sleepover",
-            "a haunted old cabin during a camping trip",
-            "a ghost on a late-night train",
-            "something wrong with the new neighbor's house",
-            "a spirit in grandparents' attic",
-            "an abandoned playground after dark",
-            "a ghost at a roadside motel",
-            "strange events at a wedding venue",
-            "a haunted library after closing",
-            "something watching from the forest edge",
-            "a ghost during a blackout storm",
-            "an eerie presence at a local hospital",
-            "something in the basement nobody talks about",
-            "a ghost on a deserted beach at night",
-            "a haunted elevator in an old building",
-            "a strange figure at a bus stop at 3 AM",
-            "something whispering from an old well",
-            "a ghost in a classroom after everyone left",
-            "a haunted antique bought from a flea market",
-            "a spirit tied to an old family photograph",
-            "something in the fog on a mountain road",
-            "a ghost at a summer camp",
+            # Classic haunted locations
+            "a ghost haunting an empty school corridor at 3 AM",
+            "a strange presence in a family home the night after a funeral",
+            "something unexplained on a solo hike through dense fog",
+            "a ghost encounter in a hospital elevator after visiting hours",
+            "a haunted old cabin discovered during a camping trip",
+            "a ghost on the last train carriage that shouldn't be running",
+            "something wrong with the new neighbor who only comes out at night",
+            "a spirit locked in the grandparents' attic for decades",
+            "an abandoned playground where swings move with no wind",
+            "a ghost at a roadside motel in room 13",
+            "strange events at a wedding venue the night before the ceremony",
+            "a haunted library where books rearrange themselves after midnight",
+            "something watching from the tree line at the edge of the yard",
+            "a ghost during a complete blackout in a storm",
+            "an eerie presence in a nursing home corridor at 4 AM",
+            "something in the basement that the family never talks about",
+            "a ghost on a deserted beach during low tide",
+            "a haunted elevator in a 1970s apartment building",
+            "a strange figure at a bus stop at exactly 3:33 AM",
+            "something whispering from the drain in an old well",
+            "a ghost in a classroom the night after the last student left forever",
+            "a haunted antique mirror bought from a widow's estate sale",
+            "a spirit tied to an old family photograph found in a locked chest",
+            "something in the fog on a mountain road in November",
+            "a ghost at a summer camp that closed after a drowning accident",
+            # Modern / suburban settings
+            "a haunted smart home where the AI assistant answers questions no one asked",
+            "a ghost seen on CCTV footage in an empty parking garage at 2 AM",
+            "something wrong in a hotel room that was double-booked with a guest who checked in years ago",
+            "a presence in an Airbnb where the host's photo on the wall keeps changing position",
+            "a ghost on a night shift alone in an office building on the top floor",
+            "something in the woods behind a new housing development built on old farmland",
+            "a haunted apartment where the previous tenant never actually moved out",
+            "a ghost encountered during a solo late-night drive through rural countryside",
+            "something in a basement with a freshly poured concrete floor no one remembers pouring",
+            "a presence in a storage unit filled with a stranger's belongings and one unlocked diary",
+            "a ghost in a dressing room of a closed department store",
+            "something inside a smart refrigerator that starts speaking at night",
+            "a haunted Zoom call where an extra participant joins who no one recognizes",
+            # Haunted objects
+            "a music box that plays a melody no one taught it",
+            "a vintage telephone that rings and connects to someone who died in 1987",
+            "a child's drawing found sealed in the walls during a kitchen renovation",
+            "a rocking chair that still rocks in a house where no one lives",
+            "a shadow that appears in every photograph taken in one specific room",
+            "a clock that stopped at the exact moment someone in the house died twenty years ago",
+            "a locked diary found in a thrift store that describes events from the future",
+            "a radio that turns on at 3 AM and plays a station that was shut down in 1993",
+            "a doll that was donated to charity three times and always finds its way home",
+            "a painting that slowly changes every night when the lights are off",
+            "an old camcorder with footage of a place no one in the family has ever been",
+            # Supernatural encounters
+            "a child ghost that only the family dog can see but always barks at the same corner",
+            "a duplicate of the main character seen standing at their own bedroom window from outside",
+            "a ghost that only appears in mirrors and watches but never moves",
+            "a presence that perfectly mimics the voice of someone's late mother",
+            "a figure that appears at funerals to sit in the front row and then vanishes",
+            "a ghost that leaves wet footprints leading to the lake but never leading back",
+            "a shadow person seen at the top of the stairs in three different houses in one family",
+            "a hitchhiker who vanishes from a moving car on a locked highway",
+            "a figure seen at the window of a house that burned down fifteen years ago",
+            # Psychological / ambiguous horror
+            "a person who wakes with no memory of the last three hours and muddy hands",
+            "a family that notices their child has been saying a dead relative's name in their sleep",
+            "a recurring nightmare that leads to a real address that actually exists",
+            "a person who receives a voicemail from their own number that they never made",
+            "a twin who realizes their sibling has been dead for a week but keeps appearing at dinner",
+            "a woman who realizes the reflection in her new house's mirror is two seconds behind",
+            # Folklore and atmospheric
+            "a ghost road where drivers always see the same hitchhiker who disappears before they stop",
+            "a childhood home the family visits that others insist has been demolished for years",
+            "a bridge where rescuers hear crying every night but never find anyone below",
+            "a haunted lighthouse that still sends signals on frequencies decommissioned in 1941",
+            "a ghost town the family drives through on a road trip but cannot find on any map afterward",
+            "a forest trail that always leads hikers back to the same clearing no matter which way they turn",
+            "a remote farmhouse where every clock in the house stopped at the same time on the same night",
         ],
     },
 }
