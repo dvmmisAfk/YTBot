@@ -185,7 +185,7 @@ def render_vertical_short(
     dur_s = f"{total_duration:.3f}"
     filter_parts.append(
         f"aevalsrc=sin(2*PI*55*t)*0.06+sin(2*PI*75*t)*0.04+sin(2*PI*100*t)*0.02:"
-        f"c=mono:r=44100:d={dur_s}[_drone]"
+        f"c=mono:d={dur_s}[_drone]"
     )
     filter_parts.append(f"anoisesrc=d={dur_s}:c=pink:a=0.025[_noise]")
     filter_parts.append("[_noise]lowpass=f=280[_wind]")
