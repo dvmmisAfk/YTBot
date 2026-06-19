@@ -42,7 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 load_dotenv(REPO_ROOT / ".env")
 
-from pipeline.captions import build_srt
+from pipeline.captions import build_ass
 from pipeline.channel_presets import get_preset, list_channel_ids
 from pipeline.edge_tts_synth import synthesize_full
 from pipeline.groq_script import generate_short_pack
@@ -79,14 +79,14 @@ def _render_and_upload(
     if total_dur < 18:
         print(f"   ⚠ Audio is {total_dur:.0f}s — might be too short")
 
-    srt_path = run_dir / f"captions{suffix}.srt"
+    ass_path = run_dir / f"captions{suffix}.ass"
     print("④ Captions…")
-    build_srt(sentence_timings, srt_path, total_dur)
+    build_ass(sentence_timings, ass_path, total_dur, font_name=font_name)
 
     video_path = run_dir / f"short{suffix}.mp4"
     print(f"⑤ FFmpeg: rendering 1080×1920 (font={font_name})…")
     render_vertical_short(
-        image_paths, total_dur, audio_path, srt_path, video_path,
+        image_paths, total_dur, audio_path, ass_path, video_path,
         font_file=font_file, font_name=font_name,
     )
     print(f"   → {video_path}")

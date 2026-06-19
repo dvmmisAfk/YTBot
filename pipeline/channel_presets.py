@@ -85,17 +85,9 @@ PRESETS: dict[str, ChannelPreset] = {
             "Every image should feel like a still from a horror film."
         ),
         "segment_count": 5,
-        "image_style_suffix": (
-            ", dark atmospheric horror illustration, deep shadows with single eerie light source, "
-            "muted desaturated palette with pops of sickly pale green or cold blue, "
-            "thick bold outlines, ghostly translucent figures, dramatic chiaroscuro lighting, "
-            "sinister oppressive mood, professional horror storybook art quality, "
-            "cinematic composition, high contrast, no text, no watermark, no logos"
-        ),
         "image_negative_prompt": (
-            "photorealistic, photograph, happy, cheerful, bright, colorful, anime eyes, blurry, "
-            "low quality, watermark, logo, text, title, signature, ugly, grainy, "
-            "gore, blood, nudity, child-unsafe, cartoon mascot, cute"
+            "blurry, low quality, watermark, logo, text, title, signature, ugly, grainy, "
+            "gore, blood, nudity, child-unsafe, cartoon, anime"
         ),
         "topic_pool": [
             # Classic haunted locations
