@@ -43,7 +43,7 @@ PRESETS: dict[str, ChannelPreset] = {
     "ghost_stories": {
         "id": "ghost_stories",
         "label": "Ghost / horror storytime Short",
-        "min_words": 120,
+        "min_words": 75,
         "tts_voice": "en-US-ChristopherNeural",
         "caption_font": "CreepsterCaps.ttf",
         "caption_font_name": "Creepster",
@@ -74,16 +74,17 @@ PRESETS: dict[str, ChannelPreset] = {
             "TONE: Eerie, dread-filled, atmospheric. NOT gory, NOT explicit violence. "
             "PG-13 horror — psychological, not physical. Original characters only. No hashtags in narration.\n\n"
 
-            "CRITICAL LENGTH: full_narration MUST be 150-180 English words. "
-            "This creates 45-55 seconds of audio. Count carefully — never go below 150 words.\n\n"
+            "CRITICAL LENGTH: full_narration MUST be 75-95 English words. "
+            "This creates ~28-32 seconds of audio. Tight and punchy — every word earns its place. "
+            "Count carefully — never go below 75 words or above 100 words.\n\n"
 
-            "IMAGE PROMPTS: Write 7 cinematic horror scene descriptions in English only. "
+            "IMAGE PROMPTS: Write 5 cinematic horror scene descriptions in English only. "
             "Each should capture a DIFFERENT moment and visual element — vary between: "
             "wide establishing shots of the haunted location, medium shots of the character reacting, "
-            "close-ups of the horrifying detail, the entity partially revealed, the discovery, the aftermath. "
+            "close-ups of the horrifying detail, the entity partially revealed, the chilling aftermath. "
             "Every image should feel like a still from a horror film."
         ),
-        "segment_count": 7,
+        "segment_count": 5,
         "image_style_suffix": (
             ", dark atmospheric horror illustration, deep shadows with single eerie light source, "
             "muted desaturated palette with pops of sickly pale green or cold blue, "

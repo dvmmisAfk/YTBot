@@ -74,9 +74,9 @@ def _render_and_upload(
     print(f"② Edge TTS ({voice or 'default'})…")
     total_dur, sentence_timings = synthesize_full(narration, audio_path, voice=voice)
     print(f"   Audio: {total_dur:.1f}s ({len(sentence_timings)} sentences tracked)")
-    if total_dur > 55:
-        print(f"   ⚠ Audio is {total_dur:.0f}s — target is 30-45s")
-    if total_dur < 25:
+    if total_dur > 33:
+        print(f"   ⚠ Audio is {total_dur:.0f}s — target is 28-32s (cap: 30s)")
+    if total_dur < 18:
         print(f"   ⚠ Audio is {total_dur:.0f}s — might be too short")
 
     srt_path = run_dir / f"captions{suffix}.srt"

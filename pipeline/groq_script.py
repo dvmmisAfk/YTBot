@@ -21,10 +21,11 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 # ── Language-specific word-count guidance ──────────────────────────────
 LANG_WORD_TARGETS = {
     "en": (
-        150,
-        185,
-        "150-185 English words (~45-55 sec spoken aloud); "
-        "full continuous narration with a strong hook, building tension, and a chilling final line — NOT a bullet list",
+        75,
+        95,
+        "75-95 English words (~28-32 sec spoken aloud); "
+        "tight punchy narration — strong hook, mounting dread, chilling final line. "
+        "Every word earns its place. NOT a bullet list",
     ),
     "hi": (
         135,
