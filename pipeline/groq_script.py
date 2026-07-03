@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import time
 from typing import Any
 
-from groq import Groq
+from groq import BadRequestError, Groq
 
 from pipeline.channel_presets import ChannelPreset
 from pipeline.story_history import history_prompt_block
@@ -48,6 +50,46 @@ def _build_hashtag_string(preset: ChannelPreset) -> str:
     return f"{base} #Shorts #YouTubeShorts".strip()
 
 
+def _build_youtube_description(preset: ChannelPreset, hook: str, context: str) -> str:
+    hook = hook.strip()
+    context = context.strip()
+    hashtags = _build_hashtag_string(preset)
+    return f"{hook}\n\n{context}\n\n{hashtags}"
+
+
+def _parse_json_response(raw: str) -> dict[str, Any]:
+    """Parse model JSON; merge consecutive objects if the model split its output."""
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+    except json.JSONDecodeError:
+        pass
+
+    merged: dict[str, Any] = {}
+    for match in re.finditer(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", raw, re.DOTALL):
+        try:
+            obj = json.loads(match.group())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            merged.update(obj)
+
+    if merged:
+        return merged
+    raise ValueError("Could not parse JSON from model output")
+
+
+def _normalize_single_pack(data: dict[str, Any], preset: ChannelPreset) -> dict[str, Any]:
+    """Ensure required fields exist; build youtube_description from simpler parts."""
+    if not (data.get("youtube_description") or "").strip():
+        hook = (data.get("description_hook") or data.get("youtube_title") or "").strip()
+        context = (data.get("description_context") or "").strip()
+        if hook and context:
+            data["youtube_description"] = _build_youtube_description(preset, hook, context)
+    return data
+
+
 def generate_short_pack(
     preset: ChannelPreset,
     *,
@@ -82,7 +124,6 @@ def generate_short_pack(
 def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]:
     language = (preset.get("language") or "en").lower()
     lo, hi, blurb = LANG_WORD_TARGETS.get(language, LANG_WORD_TARGETS["en"])
-    hashtag_str = _build_hashtag_string(preset)
 
     if language == "hi":
         narration_rule = (
@@ -103,10 +144,11 @@ def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]
         strict_extra = f"- full_narration is ONE continuous paragraph, {lo}-{hi} English words.\n"
 
     user += f"""
-Return ONLY valid JSON with this shape:
+Return ONLY one valid JSON object (not multiple). Use exactly these keys:
 {{
   "youtube_title": "short catchy title, under 90 chars, no hashtags",
-  "youtube_description": "Line 1: one hook sentence with a relevant emoji that teases the fact (under 80 chars). Line 2: blank. Line 3-4: 2 sentences of context or what the viewer will learn. Line 5: blank. Line 6: exactly this hashtag block (copy verbatim): {hashtag_str}",
+  "description_hook": "one hook sentence with a relevant emoji, under 80 chars",
+  "description_context": "exactly two sentences: what the viewer will learn about this fact",
   {narration_rule},
   "image_prompts": [
     "visual description for image 1: setting, subject, action. No style words. No text in image.",
@@ -115,11 +157,17 @@ Return ONLY valid JSON with this shape:
   ]
 }}
 
+JSON RULES (critical):
+- Output ONE JSON object only — never split into multiple objects.
+- Do NOT put description lines as separate top-level keys.
+- Use plain strings for every value; no markdown fences.
+
 STRICT RULES:
 {strict_extra}- "image_prompts" array MUST have exactly {n} entries.
 - Each image_prompt matches a different moment/beat in order.
 - Image prompts are just visuals — no narration text, no style words, no quotes.
 - The narration must flow naturally as one spoken piece (no "segment 1", "segment 2" etc).
+- Stay on the topic idea from the creator; do not switch to an unrelated fact.
 """
 
     max_attempts = 3
@@ -129,17 +177,22 @@ STRICT RULES:
         if attempt > 0:
             extra = (
                 f"\n\nCRITICAL: Previous attempt failed validation: {last_err}.\n"
-                "Please rewrite the narration to be longer and more detailed. "
-                f"Aim for {lo}-{hi} words. Add more descriptive sentences to each beat.\n"
+                "Return ONE valid JSON object with keys youtube_title, description_hook, "
+                "description_context, full_narration, image_prompts. "
+                f"Expand full_narration to {lo}-{hi} words if it was too short.\n"
             )
 
-        temp = 0.85 if attempt < 2 else 0.45
+        temp = 0.7 if attempt == 0 else 0.45
         data = _call_groq(preset, user + extra, temperature=temp)
+        data = _normalize_single_pack(data, preset)
 
         try:
             narration = data.get("full_narration", "").strip()
             if not narration:
                 raise ValueError("Missing full_narration")
+
+            if not (data.get("youtube_title") or "").strip():
+                raise ValueError("Missing youtube_title")
 
             prompts = data.get("image_prompts")
             if not isinstance(prompts, list) or len(prompts) != n:
@@ -292,17 +345,50 @@ def _call_groq(
             "GitHub Actions: add it as a repository secret named GROQ_API_KEY."
         )
     client = Groq(api_key=api_key)
-    resp = client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {"role": "system", "content": preset["groq_system_hint"]},
-            {"role": "user", "content": user},
-        ],
-        temperature=temperature,
-        max_tokens=3072,
-        response_format={"type": "json_object"},
+    json_retry_hint = (
+        "\n\nREMINDER: Respond with ONE JSON object only. "
+        "Keys must be valid JSON strings — no extra objects, no blank keys."
     )
-    raw = resp.choices[0].message.content
-    if not raw:
-        raise RuntimeError("Empty Groq response")
-    return json.loads(raw)
+
+    last_error: Exception | None = None
+    for attempt in range(4):
+        prompt = user if attempt == 0 else user + json_retry_hint
+        temp = temperature if attempt == 0 else min(temperature, 0.45)
+        try:
+            resp = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": preset["groq_system_hint"]},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=temp,
+                max_tokens=2048,
+                response_format={"type": "json_object"},
+            )
+            raw = resp.choices[0].message.content
+            if not raw:
+                raise RuntimeError("Empty Groq response")
+            return _parse_json_response(raw)
+        except BadRequestError as exc:
+            last_error = exc
+            failed = ""
+            body = getattr(exc, "body", None)
+            if isinstance(body, dict):
+                failed = (body.get("error") or {}).get("failed_generation") or ""
+            if failed:
+                try:
+                    return _normalize_single_pack(_parse_json_response(failed), preset)
+                except ValueError:
+                    pass
+            if attempt < 3:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
+        except (json.JSONDecodeError, ValueError) as exc:
+            last_error = exc
+            if attempt < 3:
+                time.sleep(1.0)
+                continue
+            raise RuntimeError(f"Groq returned invalid JSON: {exc}") from exc
+
+    raise RuntimeError(f"Groq call failed after retries: {last_error}")
