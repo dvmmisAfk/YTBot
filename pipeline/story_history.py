@@ -1,4 +1,4 @@
-"""Track past stories so Groq never repeats plot, setting, or characters.
+"""Track past topics so Groq never repeats the same fact or angle.
 
 Stores title + short summary in output/history/<channel>.json.
 """
@@ -61,7 +61,7 @@ def history_prompt_block(channel: str) -> str:
 
     listing = "\n".join(lines)
     return (
-        "\n\nIMPORTANT — Do NOT repeat or closely resemble any of these past stories. "
-        "Pick a COMPLETELY different plot, setting, characters, and theme:\n"
+        "\n\nIMPORTANT — Do NOT repeat or closely resemble any of these past topics. "
+        "Pick a COMPLETELY different fact, country, subject, and angle:\n"
         f"{listing}\n"
     )

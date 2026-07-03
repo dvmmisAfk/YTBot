@@ -20,10 +20,9 @@ Bilingual flow (preset has `variants`):
     YouTube upload (optional, per-channel token)
 
 Usage:
-  .venv/bin/python scripts/run_short.py --channel ghost_stories
-  .venv/bin/python scripts/run_short.py --channel facts --upload --privacy public
-  .venv/bin/python scripts/run_short.py --channel hindi_myth
-  # hindi_myth: topic = IST day theme (Ganesha→Shiva→…) + random unused line; --topic overrides
+  .venv/bin/python scripts/run_short.py --channel world_facts
+  .venv/bin/python scripts/run_short.py --channel world_facts --upload --privacy public
+  .venv/bin/python scripts/run_short.py --channel world_facts --topic "why honey never spoils"
 """
 from __future__ import annotations
 
@@ -65,6 +64,8 @@ def _render_and_upload(
     suffix: str,
     upload: bool,
     privacy: str,
+    image_width: int,
+    image_height: int,
     yt_token_env: str = "YT_REFRESH_TOKEN",
 ) -> Path:
     """Render one video (audio + SRT + MP4) for a single variant. Optionally upload."""
@@ -81,7 +82,12 @@ def _render_and_upload(
 
     ass_path = run_dir / f"captions{suffix}.ass"
     print("④ Captions…")
-    build_ass(sentence_timings, ass_path, total_dur, font_name=font_name)
+    build_ass(
+        sentence_timings, ass_path, total_dur,
+        font_name=font_name,
+        image_width=image_width,
+        image_height=image_height,
+    )
 
     video_path = run_dir / f"short{suffix}.mp4"
     print(f"⑤ FFmpeg: rendering 1080×1920 (font={font_name})…")
@@ -206,13 +212,15 @@ def main() -> None:
                 title=node["youtube_title"],
                 description=node.get("youtube_description", ""),
                 voice=v.get("tts_voice"),
-                font_file=v.get("caption_font", "CreepsterCaps.ttf"),
-                font_name=v.get("caption_font_name", "Creepster"),
+                font_file=v.get("caption_font", "Arial.ttf"),
+                font_name=v.get("caption_font_name", "Arial"),
                 image_paths=image_paths,
                 run_dir=run_dir,
                 suffix=f"_{v['lang']}",
                 upload=args.upload,
                 privacy=args.privacy,
+                image_width=w,
+                image_height=h,
                 yt_token_env=v.get("yt_token_env", "YT_REFRESH_TOKEN"),
             )
     else:
@@ -222,13 +230,15 @@ def main() -> None:
             title=title,
             description=pack.get("youtube_description", ""),
             voice=preset.get("tts_voice") or os.environ.get("EDGE_TTS_VOICE"),
-            font_file=preset.get("caption_font", "CreepsterCaps.ttf"),
-            font_name=preset.get("caption_font_name", "Creepster"),
+            font_file=preset.get("caption_font", "Arial.ttf"),
+            font_name=preset.get("caption_font_name", "Arial"),
             image_paths=image_paths,
             run_dir=run_dir,
             suffix="",
             upload=args.upload,
             privacy=args.privacy,
+            image_width=w,
+            image_height=h,
             yt_token_env=preset.get("yt_token_env") or "YT_REFRESH_TOKEN",
         )
 

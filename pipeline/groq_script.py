@@ -24,7 +24,7 @@ LANG_WORD_TARGETS = {
         75,
         95,
         "75-95 English words (~28-32 sec spoken aloud); "
-        "tight punchy narration — strong hook, mounting dread, chilling final line. "
+        "tight punchy narration — shocking hook, surprising fact, memorable payoff. "
         "Every word earns its place. NOT a bullet list",
     ),
     "hi": (
@@ -77,7 +77,7 @@ def generate_short_pack(
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Single-language path (backward compat for ghost_stories, school_story, etc.)
+# Single-language path (backward compat for world_facts, etc.)
 # ─────────────────────────────────────────────────────────────────────────
 def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]:
     language = (preset.get("language") or "en").lower()
@@ -97,7 +97,7 @@ def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]
         )
     else:
         narration_rule = (
-            '"full_narration": "COMPLETE story/script as one continuous paragraph. This is what the voice will read. '
+            '"full_narration": "COMPLETE narration as one continuous paragraph. This is what the voice will read. '
             f'Must be {blurb}. Natural narration — no segment breaks, no numbering."'
         )
         strict_extra = f"- full_narration is ONE continuous paragraph, {lo}-{hi} English words.\n"
@@ -106,7 +106,7 @@ def _generate_single(preset: ChannelPreset, user: str, n: int) -> dict[str, Any]
 Return ONLY valid JSON with this shape:
 {{
   "youtube_title": "short catchy title, under 90 chars, no hashtags",
-  "youtube_description": "Line 1: one hook sentence with a relevant emoji that teases the story (under 80 chars). Line 2: blank. Line 3-4: 2 sentences of context or what the viewer will discover. Line 5: blank. Line 6: exactly this hashtag block (copy verbatim): {hashtag_str}",
+  "youtube_description": "Line 1: one hook sentence with a relevant emoji that teases the fact (under 80 chars). Line 2: blank. Line 3-4: 2 sentences of context or what the viewer will learn. Line 5: blank. Line 6: exactly this hashtag block (copy verbatim): {hashtag_str}",
   {narration_rule},
   "image_prompts": [
     "visual description for image 1: setting, subject, action. No style words. No text in image.",

@@ -1,6 +1,6 @@
 """Channel niches: system prompt + defaults for Groq script generation.
 
-Only the ghost_stories niche is active. All other presets have been removed.
+Active preset: world_facts — catchy world/culture/science trivia Shorts.
 """
 
 from __future__ import annotations
@@ -40,133 +40,152 @@ class ChannelPreset(TypedDict, total=False):
 
 
 PRESETS: dict[str, ChannelPreset] = {
-    "ghost_stories": {
-        "id": "ghost_stories",
-        "label": "Ghost / horror storytime Short",
+    "world_facts": {
+        "id": "world_facts",
+        "label": "World & culture facts Short",
         "min_words": 60,
-        "tts_voice": "en-US-ChristopherNeural",
-        "caption_font": "CreepsterCaps.ttf",
-        "caption_font_name": "Creepster",
+        "tts_voice": "en-US-GuyNeural",
+        "caption_font": "Arial.ttf",
+        "caption_font_name": "Arial",
         "yt_token_env": "YT_REFRESH_TOKEN",
         "description_hashtags": [
-            "GhostStory", "Horror", "Scary", "Storytime",
-            "SpookyStory", "HorrorShorts", "CreepyStory",
-            "GhostStories", "ScaryStory", "HorrorStorytime",
+            "DidYouKnow", "FunFacts", "WorldFacts", "AmazingFacts",
+            "Culture", "Geography", "History", "ScienceFacts",
+            "LearnOnYouTube", "MindBlown",
         ],
         "groq_system_hint": (
-            "You are a master horror storyteller for YouTube Shorts. Your ghost stories are gripping, "
-            "atmospheric, and genuinely unsettling — they stop scrolling and leave viewers with chills.\n\n"
+            "You are a viral YouTube Shorts fact creator. You turn surprising, real-world trivia "
+            "into scroll-stopping 30-second videos that make viewers say 'Wait, WHAT?!'\n\n"
 
-            "STORY CRAFT:\n"
-            "• Open MID-SCENE — no preamble. First line creates immediate unease. "
-            "\"The door at the end of the hall opened on its own again.\" "
-            "Never start with 'Today I want to tell you...'\n"
-            "• Use SPECIFIC, REAL details: give characters real names, use exact times ('3:14 AM'), "
-            "name exact places ('Room 217', 'Maple Grove Road'). Specificity creates believability.\n"
-            "• Build dread through SENSORY DETAILS — the cold spot, the smell of damp earth, "
-            "the sound of breathing behind a wall. Don't name the monster; describe its effects.\n"
-            "• PACING: Short punchy sentences = fast heartbeat tension. Long slow sentences = suffocating dread. "
-            "Alternate deliberately.\n"
-            "• NEVER explain the supernatural — ambiguity is horror's most powerful tool.\n"
-            "• ENDING (most important): Final 1-2 sentences must land a chill. An unanswered question, "
-            "a dark realization, or a twist that recontextualizes everything. The last word should echo.\n\n"
+            "FACT CRAFT:\n"
+            "• HOOK FIRST — open with the most shocking part of the fact. "
+            "Start with 'Did you know…', a bold number, or a counterintuitive claim. "
+            "Never open with 'Today we're going to learn about…'\n"
+            "• ONE CORE FACT per video — pick ONE mind-blowing truth and build everything around it. "
+            "Add 2-3 supporting details that make it stick (numbers, comparisons, context).\n"
+            "• USE SPECIFICS — real country names, dates, numbers, and comparisons "
+            "('that's taller than the Eiffel Tower', 'more people than live in Canada'). "
+            "Specificity = credibility + shareability.\n"
+            "• PACING: Mix short punchy sentences with one longer payoff line. "
+            "Sound like a friend telling you something wild, not a textbook.\n"
+            "• ENDING: Land a memorable closer — restate the fact in a new way, "
+            "a 'let that sink in' moment, or a question that makes them want to comment.\n\n"
 
-            "TONE: Eerie, dread-filled, atmospheric. NOT gory, NOT explicit violence. "
-            "PG-13 horror — psychological, not physical. Original characters only. No hashtags in narration.\n\n"
+            "TOPIC RANGE: Geography, cultures, food traditions, animals, history oddities, "
+            "language quirks, inventions, records, space, psychology, everyday objects — "
+            "anything with a genuine 'I had no idea' factor.\n\n"
 
-            "CRITICAL LENGTH: full_narration MUST be 75-95 English words. "
-            "This creates ~28-32 seconds of audio. Tight and punchy — every word earns its place. "
-            "Count carefully — never go below 75 words or above 100 words.\n\n"
+            "TONE: Energetic, curious, upbeat. Family-friendly. No politics, no controversy, "
+            "no made-up facts. If unsure, pick a well-known verified fact. No hashtags in narration.\n\n"
 
-            "IMAGE PROMPTS: Write 5 cinematic horror scene descriptions in English only. "
-            "Each should capture a DIFFERENT moment and visual element — vary between: "
-            "wide establishing shots of the haunted location, medium shots of the character reacting, "
-            "close-ups of the horrifying detail, the entity partially revealed, the chilling aftermath. "
-            "Every image should feel like a still from a horror film."
+            "CRITICAL LENGTH: full_narration MUST be 75-95 English words (~28-32 sec spoken). "
+            "Tight and punchy — every word earns its place.\n\n"
+
+            "IMAGE PROMPTS: Write 5 vivid scene descriptions in English only — "
+            "documentary/travel photography style showing the subject of the fact. "
+            "Vary shots: wide landscape, cultural detail, close-up of the object/phenomenon, "
+            "people in context (generic, not identifiable), iconic location. "
+            "Bright, colorful, real-world — NOT horror, NOT dark, NOT cartoon."
         ),
         "segment_count": 5,
+        "image_style_suffix": (
+            ", vibrant documentary photography, National Geographic style, warm natural lighting, "
+            "rich saturated colors, photorealistic, travel magazine quality, "
+            "no text, no captions, no watermark, no logos"
+        ),
         "image_negative_prompt": (
             "blurry, low quality, watermark, logo, text, title, signature, ugly, grainy, "
-            "gore, blood, nudity, child-unsafe, cartoon, anime"
+            "dark, horror, scary, gore, cartoon, anime, oversaturated, distorted"
         ),
         "topic_pool": [
-            # Classic haunted locations
-            "a ghost haunting an empty school corridor at 3 AM",
-            "a strange presence in a family home the night after a funeral",
-            "something unexplained on a solo hike through dense fog",
-            "a ghost encounter in a hospital elevator after visiting hours",
-            "a haunted old cabin discovered during a camping trip",
-            "a ghost on the last train carriage that shouldn't be running",
-            "something wrong with the new neighbor who only comes out at night",
-            "a spirit locked in the grandparents' attic for decades",
-            "an abandoned playground where swings move with no wind",
-            "a ghost at a roadside motel in room 13",
-            "strange events at a wedding venue the night before the ceremony",
-            "a haunted library where books rearrange themselves after midnight",
-            "something watching from the tree line at the edge of the yard",
-            "a ghost during a complete blackout in a storm",
-            "an eerie presence in a nursing home corridor at 4 AM",
-            "something in the basement that the family never talks about",
-            "a ghost on a deserted beach during low tide",
-            "a haunted elevator in a 1970s apartment building",
-            "a strange figure at a bus stop at exactly 3:33 AM",
-            "something whispering from the drain in an old well",
-            "a ghost in a classroom the night after the last student left forever",
-            "a haunted antique mirror bought from a widow's estate sale",
-            "a spirit tied to an old family photograph found in a locked chest",
-            "something in the fog on a mountain road in November",
-            "a ghost at a summer camp that closed after a drowning accident",
-            # Modern / suburban settings
-            "a haunted smart home where the AI assistant answers questions no one asked",
-            "a ghost seen on CCTV footage in an empty parking garage at 2 AM",
-            "something wrong in a hotel room that was double-booked with a guest who checked in years ago",
-            "a presence in an Airbnb where the host's photo on the wall keeps changing position",
-            "a ghost on a night shift alone in an office building on the top floor",
-            "something in the woods behind a new housing development built on old farmland",
-            "a haunted apartment where the previous tenant never actually moved out",
-            "a ghost encountered during a solo late-night drive through rural countryside",
-            "something in a basement with a freshly poured concrete floor no one remembers pouring",
-            "a presence in a storage unit filled with a stranger's belongings and one unlocked diary",
-            "a ghost in a dressing room of a closed department store",
-            "something inside a smart refrigerator that starts speaking at night",
-            "a haunted Zoom call where an extra participant joins who no one recognizes",
-            # Haunted objects
-            "a music box that plays a melody no one taught it",
-            "a vintage telephone that rings and connects to someone who died in 1987",
-            "a child's drawing found sealed in the walls during a kitchen renovation",
-            "a rocking chair that still rocks in a house where no one lives",
-            "a shadow that appears in every photograph taken in one specific room",
-            "a clock that stopped at the exact moment someone in the house died twenty years ago",
-            "a locked diary found in a thrift store that describes events from the future",
-            "a radio that turns on at 3 AM and plays a station that was shut down in 1993",
-            "a doll that was donated to charity three times and always finds its way home",
-            "a painting that slowly changes every night when the lights are off",
-            "an old camcorder with footage of a place no one in the family has ever been",
-            # Supernatural encounters
-            "a child ghost that only the family dog can see but always barks at the same corner",
-            "a duplicate of the main character seen standing at their own bedroom window from outside",
-            "a ghost that only appears in mirrors and watches but never moves",
-            "a presence that perfectly mimics the voice of someone's late mother",
-            "a figure that appears at funerals to sit in the front row and then vanishes",
-            "a ghost that leaves wet footprints leading to the lake but never leading back",
-            "a shadow person seen at the top of the stairs in three different houses in one family",
-            "a hitchhiker who vanishes from a moving car on a locked highway",
-            "a figure seen at the window of a house that burned down fifteen years ago",
-            # Psychological / ambiguous horror
-            "a person who wakes with no memory of the last three hours and muddy hands",
-            "a family that notices their child has been saying a dead relative's name in their sleep",
-            "a recurring nightmare that leads to a real address that actually exists",
-            "a person who receives a voicemail from their own number that they never made",
-            "a twin who realizes their sibling has been dead for a week but keeps appearing at dinner",
-            "a woman who realizes the reflection in her new house's mirror is two seconds behind",
-            # Folklore and atmospheric
-            "a ghost road where drivers always see the same hitchhiker who disappears before they stop",
-            "a childhood home the family visits that others insist has been demolished for years",
-            "a bridge where rescuers hear crying every night but never find anyone below",
-            "a haunted lighthouse that still sends signals on frequencies decommissioned in 1941",
-            "a ghost town the family drives through on a road trip but cannot find on any map afterward",
-            "a forest trail that always leads hikers back to the same clearing no matter which way they turn",
-            "a remote farmhouse where every clock in the house stopped at the same time on the same night",
+            # Geography & nature
+            "the country that has no rivers at all",
+            "a lake in Africa that can explode and release deadly gas",
+            "the town in Norway where the sun doesn't set for months",
+            "why Iceland has almost no mosquitoes",
+            "the desert that used to be a lush green forest",
+            "a waterfall in Venezuela that falls from such height the water turns to mist",
+            "the island nation that is sinking due to rising sea levels",
+            "why Australia is wider than the moon",
+            "the coldest inhabited place on Earth where people still live normally",
+            "a forest in Poland where trees grow in perfect curved shapes",
+            # Culture & traditions
+            "why people in Spain eat dinner at 10 PM",
+            "the Japanese tradition of repairing broken pottery with gold",
+            "why brides in India wear red instead of white",
+            "the country where pointing with your index finger is considered rude",
+            "why Scottish men wear kilts and what they symbolize",
+            "the Mexican holiday where families welcome back spirits with food and music",
+            "why Thai people wai instead of shaking hands",
+            "the Ethiopian coffee ceremony that can take hours",
+            "why Finnish babies sleep in cardboard boxes provided by the government",
+            "the Korean age system where you are 1 year old at birth",
+            # Food & cuisine
+            "why pineapple on pizza is actually popular in one country",
+            "the fruit that is illegal to bring into the US from certain countries",
+            "why Swiss chocolate became world-famous",
+            "the spice that was once worth more than gold",
+            "why people in the UK call french fries 'chips'",
+            "the world's most expensive coffee made from animal droppings",
+            "why bread in Germany has over 3000 varieties",
+            "the country that eats the most ice cream per person",
+            "why sushi was originally a way to preserve fish",
+            "the cheese that is illegal in some countries due to bacteria",
+            # History oddities
+            "the war that lasted only 38 minutes",
+            "why the Great Wall of China cannot be seen from space with the naked eye",
+            "the ancient Roman punishment for killing your father",
+            "why Napoleon was actually average height for his time",
+            "the library that burned down and set human knowledge back centuries",
+            "why Vikings never actually wore horned helmets",
+            "the empire that lasted over 1000 years but most people forget about",
+            "why Cleopatra lived closer in time to the iPhone than to the pyramids",
+            "the shortest-reigning king who ruled for only 20 minutes",
+            "why the Titanic had a sister ship that also sank",
+            # Science & animals
+            "why octopuses have three hearts and blue blood",
+            "the animal that can sleep while flying",
+            "why bananas are technically berries but strawberries are not",
+            "the bird that can mimic chainsaws and camera shutters",
+            "why honey never spoils — archaeologists found edible honey in Egyptian tombs",
+            "the fish that can live out of water for years",
+            "why your stomach gets a new lining every few days",
+            "the ant that can carry 50 times its body weight",
+            "why flamingos are pink because of what they eat",
+            "the animal that has been to space before humans",
+            # Language & communication
+            "why there is no word for 'yes' in Irish Gaelic",
+            "the language with the most words in the world",
+            "why English has more words than any other language",
+            "the country with over 700 spoken languages",
+            "why the @ symbol is called different things in different countries",
+            "the word that is the same in almost every language on Earth",
+            "why Japanese has three different writing systems",
+            "the language that has no future tense",
+            "why sign language is not universal — there are hundreds of them",
+            "the longest word in the English dictionary",
+            # Records & inventions
+            "why the QWERTY keyboard was designed to slow you down",
+            "the invention that was rejected 12 times before becoming famous",
+            "why bubble wrap was originally invented as wallpaper",
+            "the country with the most time zones",
+            "why the first computer bug was an actual insect",
+            "the tallest building in the world and how long it took to build",
+            "why Post-it Notes were invented by accident",
+            "the sport invented in one country but dominated by another",
+            "why the Olympic rings have those specific five colors",
+            "the phone that was sold for over 100 million units",
+            # Space & psychology
+            "why a day on Venus is longer than its year",
+            "the planet where it rains diamonds",
+            "why astronauts grow taller in space",
+            "the human brain uses the same amount of power as a light bulb",
+            "why you can't hum while holding your nose",
+            "the optical illusion that proves your brain fills in gaps",
+            "why we forget most of our dreams within minutes of waking",
+            "the country that has a national holiday for napping",
+            "why laughing is contagious — the science behind it",
+            "the phobia that is the most common in the world",
         ],
     },
 }

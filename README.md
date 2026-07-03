@@ -12,7 +12,7 @@ scripts/run_short.py          ← orchestrator
   pipeline/captions.py        ← SRT from segment timings
   pipeline/render_short.py    ← FFmpeg: slideshow + audio + burned captions
   pipeline/youtube_upload.py  ← YouTube Data API v3 upload
-  pipeline/channel_presets.py ← niche presets (ghost_stories, facts, etc.)
+  pipeline/channel_presets.py ← niche presets (world_facts, etc.)
 ```
 
 ## Quick Start (local)
@@ -31,10 +31,10 @@ cp .env.example .env
 brew install ffmpeg         # macOS
 # sudo apt install ffmpeg   # Ubuntu
 
-# Generate a ghost story Short (no upload):
-.venv/bin/python scripts/run_short.py --channel ghost_stories
+# Generate a world facts Short (no upload):
+.venv/bin/python scripts/run_short.py --channel world_facts
 
-# Output → output/runs/ghost_stories_<timestamp>/short.mp4
+# Output → output/runs/world_facts_<timestamp>/short.mp4
 ```
 
 ## Free API Keys You Need
@@ -64,7 +64,7 @@ brew install ffmpeg         # macOS
 8. Now you can upload:
 
 ```bash
-.venv/bin/python scripts/run_short.py --channel ghost_stories --upload --privacy private
+.venv/bin/python scripts/run_short.py --channel world_facts --upload --privacy private
 ```
 
 ## GitHub Actions (daily autopilot)
@@ -83,24 +83,20 @@ Go to **repo → Settings → Secrets and variables → Actions → New reposito
 
 ### Trigger
 
-- **Automatic**: runs daily at 10:00 UTC (edit cron in `.github/workflows/daily_short.yml`)
-- **Manual**: Actions tab → "Daily YouTube Short" → Run workflow → pick channel + topic
+- **Automatic**: runs 8× daily (every 3 hours UTC) via `.github/workflows/world_facts.yml`
+- **Manual**: Actions tab → "World Facts Shorts — 8x Daily" → Run workflow → optional topic hint
 
 ### Change channel / schedule
 
-Edit `.github/workflows/daily_short.yml`:
-- Change `cron: "0 10 * * *"` to your preferred time ([crontab.guru](https://crontab.guru/))
-- Change default channel in the `CHANNEL=` line
+Edit `.github/workflows/world_facts.yml`:
+- Change cron entries to your preferred times ([crontab.guru](https://crontab.guru/))
+- Change `--channel world_facts` if you add another preset
 
 ## Channel Presets
 
 | `--channel` | Niche |
 |-------------|-------|
-| `ghost_stories` | Spooky / horror storytime |
-| `facts` | Interesting facts / trivia |
-| `school_story` | School drama / storytime |
-| `psych_tradeoff` | Psychology / habits |
-| `history_micro` | One moment in history |
+| `world_facts` | Catchy world / culture / science facts |
 
 Add your own in `pipeline/channel_presets.py`.
 

@@ -85,33 +85,60 @@ def _ass_ts(ms: int) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+def caption_margin_for_image(
+    image_width: int,
+    image_height: int,
+    *,
+    play_res_x: int = 1080,
+    play_res_y: int = 1920,
+    padding: int = 48,
+) -> int:
+    """ASS MarginV for bottom-aligned captions sitting on the image footer.
+
+    Images are scaled with force_original_aspect_ratio=decrease and letterboxed
+    to the canvas; this places text just above the bottom black bar.
+    """
+    scale = min(play_res_x / max(image_width, 1), play_res_y / max(image_height, 1))
+    scaled_h = image_height * scale
+    bottom_bar = (play_res_y - scaled_h) / 2
+    return int(bottom_bar + padding)
+
+
 def build_ass(
     sentences: list,
     out_path: Path,
     total_duration: float,
     *,
     max_words_per_line: int = 5,
-    font_name: str = "Creepster",
+    font_name: str = "Arial",
     font_size: int = 58,
     play_res_x: int = 1080,
     play_res_y: int = 1920,
-    margin_v: int = 80,
+    margin_v: int | None = None,
+    image_width: int | None = None,
+    image_height: int | None = None,
 ) -> Path:
-    """Generate an ASS subtitle file with top-center alignment baked into the style.
+    """Generate an ASS subtitle file with bottom-center alignment baked into the style.
 
-    Using ASS instead of SRT + force_style guarantees that Alignment=8
-    (top-center) and MarginV are honoured across all ffmpeg versions.
+    Using ASS instead of SRT + force_style guarantees that Alignment=2
+    (bottom-center) and MarginV are honoured across all ffmpeg versions.
 
     Font size is in output pixels (PlayResX/Y match the render resolution)
     so font_size=58 → 58px tall glyphs on a 1920-tall canvas (~3 % of height).
 
     ASS colour format: &HAABBGGRR
       white text  → &H00FFFFFF
-      dark-red outline → &H000000AA  (alpha=00, blue=00, green=00, red=AA)
+      gold outline → &H0000AAFF  (alpha=00, blue=00, green=AA, red=FF)
       semi-black box   → &H80000000  (alpha=80 = 50% transparent)
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if margin_v is None:
+        if image_width and image_height:
+            margin_v = caption_margin_for_image(image_width, image_height)
+        else:
+            margin_v = 180
 
     if not sentences:
         out_path.write_text("", encoding="utf-8")
@@ -132,10 +159,10 @@ def build_ass(
         "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,{font_name},{font_size},"
-        "&H00FFFFFF,&H00FFFFFF,&H000000AA,&H80000000,"  # colours
+        "&H00FFFFFF,&H00FFFFFF,&H0000AAFF,&H80000000,"  # colours
         "-1,0,0,0,100,100,0,0,"                          # Bold, no italic/underline
         f"4,3,0,"                                         # BorderStyle=4 (box), Outline=3
-        f"8,20,20,{margin_v},1\n"                        # Alignment=8 top-center
+        f"2,20,20,{margin_v},1\n"                        # Alignment=2 bottom-center
         "\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"

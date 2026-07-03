@@ -1,4 +1,4 @@
-name: Ghost Stories Shorts — 8x Daily
+name: World Facts Shorts — 8x Daily
 
 on:
   # 8 uploads spread evenly across 24 hours (every 3 hours)
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       topic:
-        description: "Optional ghost story topic hint (leave blank for random)"
+        description: "Optional fact topic hint (leave blank for random)"
         required: false
         default: ""
 
@@ -25,7 +25,7 @@ env:
   YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
   YT_CLIENT_SECRET_VALUE: ${{ secrets.YT_CLIENT_SECRET_VALUE }}
   YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-  EDGE_TTS_VOICE: "en-US-ChristopherNeural"
+  EDGE_TTS_VOICE: "en-US-GuyNeural"
 
 jobs:
   generate-and-upload:
@@ -48,28 +48,28 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      # Restore story history from previous runs (prevents repeating the same story)
+      # Restore fact history from previous runs (prevents repeating the same topic)
       - name: Restore history cache
         uses: actions/cache/restore@v4
         with:
           path: output/history/
-          key: ghost-story-history-${{ github.run_id }}
+          key: world-facts-history-${{ github.run_id }}
           restore-keys: |
-            ghost-story-history-
+            world-facts-history-
 
-      - name: Generate & upload Ghost Story Short
+      - name: Generate & upload World Facts Short
         run: |
           TOPIC="${{ github.event.inputs.topic || '' }}"
           if [ -n "$TOPIC" ]; then
-            python scripts/run_short.py --channel ghost_stories --topic "$TOPIC" --upload --privacy public
+            python scripts/run_short.py --channel world_facts --topic "$TOPIC" --upload --privacy public
           else
-            python scripts/run_short.py --channel ghost_stories --upload --privacy public
+            python scripts/run_short.py --channel world_facts --upload --privacy public
           fi
 
-      # Save history so future runs know which stories have already been told
+      # Save history so future runs know which facts have already been covered
       - name: Save history cache
         uses: actions/cache/save@v4
         if: always()
         with:
           path: output/history/
-          key: ghost-story-history-${{ github.run_id }}
+          key: world-facts-history-${{ github.run_id }}

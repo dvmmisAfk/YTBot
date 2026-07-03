@@ -1,13 +1,11 @@
 """FFmpeg: images + audio + captions → vertical Short MP4 (9:16).
 
-Horror effects stack:
-  - Ken Burns zoom (alternating zoom-in / zoom-out, 10% range for drama)
-  - Cycling horror xfade transitions: fadeblack → distance → fadegrays → dissolve → zoomin
-  - Dynamic per-video color palette: randomly chosen from 5 distinct horror grades
-  - Per-scene intensity ramp: clips darken toward climax, contrast peaks mid-story
-  - Randomised vignette angle for subtle variety across videos
-  - Background music: subterranean-machinery.mp3 looped at 20% under narration
-  - Creepster font captions: top-center with 80 px top gap for easy reading
+Fact/trivia effects stack:
+  - Ken Burns zoom (alternating zoom-in / zoom-out)
+  - Clean xfade transitions: fade, dissolve, slideleft
+  - Bright documentary color grades — warm and vibrant
+  - Background music: dobb.mp3 looped at 20% under narration
+  - Bottom-center captions on the image footer (above letterbox bar)
 """
 from __future__ import annotations
 
@@ -18,62 +16,44 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FONTS_DIR = REPO_ROOT / "assets" / "fonts"
-BG_MUSIC_PATH = REPO_ROOT / "subterranean-machinery.mp3"
-DEFAULT_FONT_FILE = "CreepsterCaps.ttf"
-DEFAULT_FONT_NAME = "Creepster"
+BG_MUSIC_PATH = REPO_ROOT / "dobb.mp3"
+DEFAULT_FONT_FILE = "Arial.ttf"
+DEFAULT_FONT_NAME = "Arial"
 
 FPS = 30
 FADE_DUR = 0.5
 ZOOM_AMOUNT = 0.10
 
-# Cycling horror xfade transitions for scene variety
-HORROR_XFADE_TRANSITIONS = [
-    "fadeblack",
-    "distance",
-    "fadegrays",
-    "fadeblack",
+XFADE_TRANSITIONS = [
+    "fade",
     "dissolve",
-    "zoomin",
-    "fadeblack",
+    "slideleft",
+    "slideright",
+    "fade",
+    "dissolve",
 ]
 
-# Five distinct horror color palettes — one is randomly selected per video
-# so every video has a different visual identity
+# Bright documentary palettes — one randomly selected per video
 COLOR_PALETTES = [
-    # cold blue: frozen ghost dread
-    {"sat": 0.55, "bright": -0.06, "contrast": 1.20,
-     "extra": "colorchannelmixer=rr=0.85:gg=0.95:bb=1.15"},
-    # sickly green: rotting, infection, swamp
-    {"sat": 0.60, "bright": -0.05, "contrast": 1.15,
-     "extra": "colorchannelmixer=rr=0.90:gg=1.10:bb=0.85"},
-    # deep shadow: psychological crushing darkness
-    {"sat": 0.45, "bright": -0.10, "contrast": 1.32,
-     "extra": ""},
-    # crimson noir: blood-tinted shadows, lurking danger
-    {"sat": 0.50, "bright": -0.08, "contrast": 1.25,
-     "extra": "colorchannelmixer=rr=1.15:gg=0.90:bb=0.85"},
-    # ashen fog: ghostly pale, barely there
-    {"sat": 0.35, "bright": -0.03, "contrast": 1.08,
-     "extra": "colorchannelmixer=rr=0.95:gg=0.97:bb=1.05"},
+    {"sat": 1.12, "bright": 0.04, "contrast": 1.06, "extra": ""},
+    {"sat": 1.15, "bright": 0.05, "contrast": 1.04,
+     "extra": "colorchannelmixer=rr=1.05:gg=1.02:bb=0.95"},
+    {"sat": 1.10, "bright": 0.03, "contrast": 1.08,
+     "extra": "colorchannelmixer=rr=0.95:gg=1.05:bb=1.08"},
+    {"sat": 1.08, "bright": 0.06, "contrast": 1.05,
+     "extra": "colorchannelmixer=rr=1.08:gg=1.04:bb=0.92"},
+    {"sat": 1.14, "bright": 0.04, "contrast": 1.07,
+     "extra": "colorchannelmixer=rr=1.02:gg=1.06:bb=1.00"},
 ]
-
-VIGNETTE_ANGLES = ["PI/3.5", "PI/4", "PI/3", "PI/2.8"]
 
 
 def _clip_grade_vf(idx: int, n: int, palette: dict) -> str:
-    """Per-clip color grade that varies with narrative position.
+    """Per-clip color grade — slight brightening toward the payoff."""
+    progress = idx / max(n - 1, 1)
+    bright_bump = min(progress / 0.7, 1.0) * 0.03
 
-    Opens at the palette's base values, darkens toward the climax scene,
-    and slightly brightens the final frame for a cold landing.
-    """
-    progress = idx / max(n - 1, 1)  # 0.0 at first clip, 1.0 at last
-    # Darken progressively through the first 65% of the story
-    dark_ramp = min(progress / 0.65, 1.0) * -0.05
-    # Contrast boost peaks in the middle (rising action through climax)
-    contrast_bump = 0.12 if 0.25 < progress < 0.85 else 0.0
-
-    b = palette["bright"] + dark_ramp
-    c = palette["contrast"] + contrast_bump
+    b = palette["bright"] + bright_bump
+    c = palette["contrast"]
     vf = f"eq=saturation={palette['sat']:.2f}:brightness={b:.3f}:contrast={c:.2f}"
     if palette.get("extra"):
         vf += f",{palette['extra']}"
@@ -111,9 +91,7 @@ def render_vertical_short(
     clip_dur = (total_duration + (n - 1) * FADE_DUR) / n if n > 1 else total_duration
     frames_per_clip = max(int(clip_dur * FPS), 2)
 
-    # Pick random visual identity for this video
     palette = random.choice(COLOR_PALETTES)
-    vignette_angle = random.choice(VIGNETTE_ANGLES)
 
     # ── 1. Pre-scale images ──────────────────────────────────────────
     for i, src in enumerate(image_paths):
@@ -164,9 +142,6 @@ def render_vertical_short(
         )
 
     # ── 3. Prepare subtitles + font ──────────────────────────────────
-    # Expects a .ass file generated by captions.build_ass() with style baked in.
-    # Using the `ass` filter (not `subtitles` + force_style) guarantees that
-    # Alignment=8 (top-center) and MarginV are respected by all ffmpeg versions.
     shutil.copyfile(sub_path, tmp / "captions.ass")
 
     fontsdir_arg = ""
@@ -179,7 +154,7 @@ def render_vertical_short(
     else:
         print(f"   ⚠ Font {font_path} not found — captions will use system font")
 
-    # ── 4. Build xfade chain + vignette + subtitles ───────────────────
+    # ── 4. Build xfade chain + subtitles ─────────────────────────────
     inputs: list[str] = []
     for i in range(n):
         inputs += ["-i", f"clip_{i + 1:02d}.mp4"]
@@ -187,21 +162,19 @@ def render_vertical_short(
 
     use_music = BG_MUSIC_PATH.is_file()
     if use_music:
-        # -stream_loop -1 must appear before its -i to loop the file
         inputs += ["-stream_loop", "-1", "-i", str(BG_MUSIC_PATH.resolve())]
-    music_idx = n + 1  # clips 0..n-1, narration n, music n+1
+    else:
+        print(f"   ⚠ BGM {BG_MUSIC_PATH} not found — narration only")
+    music_idx = n + 1
 
     filter_parts: list[str] = []
 
     if n == 1:
-        filter_parts.append(f"[0:v]vignette={vignette_angle}[_vig]")
-        filter_parts.append(
-            f"[_vig]ass=captions.ass{fontsdir_arg}[final]"
-        )
+        filter_parts.append(f"[0:v]ass=captions.ass{fontsdir_arg}[final]")
     else:
         prev = "[0:v]"
         for i in range(n - 1):
-            transition = HORROR_XFADE_TRANSITIONS[i % len(HORROR_XFADE_TRANSITIONS)]
+            transition = XFADE_TRANSITIONS[i % len(XFADE_TRANSITIONS)]
             offset = (i + 1) * (clip_dur - FADE_DUR)
             next_v = f"[{i + 1}:v]"
             out = f"[x{i}]"
@@ -210,10 +183,7 @@ def render_vertical_short(
                 f"duration={FADE_DUR:.4f}:offset={offset:.4f}{out}"
             )
             prev = out
-        filter_parts.append(f"{prev}vignette={vignette_angle}[_vig]")
-        filter_parts.append(
-            f"[_vig]ass=captions.ass{fontsdir_arg}[final]"
-        )
+        filter_parts.append(f"{prev}ass=captions.ass{fontsdir_arg}[final]")
 
     dur_s = f"{total_duration:.3f}"
     if use_music:
@@ -241,5 +211,4 @@ def render_vertical_short(
     ]
     subprocess.run(cmd, check=True, cwd=str(tmp), timeout=600)
 
-    # ── cleanup ──────────────────────────────────────────────────────
     shutil.rmtree(tmp, ignore_errors=True)
