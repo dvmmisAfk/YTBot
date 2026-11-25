@@ -12,12 +12,51 @@ import re
 import time
 from typing import Any
 
-from groq import BadRequestError, Groq
+from groq import BadRequestError, Groq, NotFoundError
 
 from pipeline.channel_presets import ChannelPreset
 from pipeline.story_history import history_prompt_block
 
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "").strip() or "openai/gpt-oss-120b"
+
+# Tried in order after GROQ_MODEL if Groq reports a model as not found
+# (Groq retires models periodically — e.g. llama-3.1-8b-instant).
+_FALLBACK_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3-32b",
+]
+_NON_CHAT_MARKERS = ("whisper", "tts", "guard", "playai", "orpheus", "distil", "compound", "allam")
+_dead_models: set[str] = set()
+_active_model: str | None = None
+
+
+_candidates_cache: list[str] | None = None
+
+
+def _model_candidates(client: Groq) -> list[str]:
+    global _candidates_cache
+    if _candidates_cache is None:
+        _candidates_cache = _discover_models(client)
+    return [m for m in _candidates_cache if m not in _dead_models]
+
+
+def _discover_models(client: Groq) -> list[str]:
+    ordered = [GROQ_MODEL] + [m for m in _FALLBACK_MODELS if m != GROQ_MODEL]
+    try:
+        live = sorted(
+            m.id
+            for m in client.models.list().data
+            if getattr(m, "active", True)
+            and not any(k in m.id.lower() for k in _NON_CHAT_MARKERS)
+        )
+        # Keep preferred order for models that exist, then any other live chat models.
+        ordered = [m for m in ordered if m in live] + [m for m in live if m not in ordered]
+    except Exception as exc:  # listing is best-effort
+        print(f"[groq] could not list models ({exc}); using static fallback list")
+    return ordered
 
 
 # ── Language-specific word-count guidance ──────────────────────────────
@@ -331,6 +370,33 @@ def _assert_multivariant_valid(data: dict[str, Any], variants: list, n: int) -> 
             raise ValueError(f"variants['{lang}'].youtube_title empty")
 
 
+def _create_with_fallback(client: Groq, **kwargs: Any):
+    """chat.completions.create, switching models if the current one is retired/unavailable."""
+    global _active_model
+    candidates = [_active_model] if _active_model else []
+    candidates += [m for m in _model_candidates(client) if m not in candidates]
+    last_exc: Exception | None = None
+    for model in candidates:
+        call_kwargs = dict(kwargs)
+        if model.startswith("openai/gpt-oss"):
+            # Reasoning model: keep thinking short so it doesn't eat the output budget.
+            call_kwargs["reasoning_effort"] = "low"
+            call_kwargs["max_tokens"] = max(call_kwargs.get("max_tokens", 0), 4096)
+        try:
+            resp = client.chat.completions.create(model=model, **call_kwargs)
+            if model != GROQ_MODEL and _active_model != model:
+                print(f"[groq] model '{GROQ_MODEL}' unavailable - using '{model}'")
+            _active_model = model
+            return resp
+        except NotFoundError as exc:
+            print(f"[groq] model '{model}' not found, trying next...")
+            _dead_models.add(model)
+            if _active_model == model:
+                _active_model = None
+            last_exc = exc
+    raise RuntimeError(f"No usable Groq model found (tried: {', '.join(candidates)})") from last_exc
+
+
 def _call_groq(
     preset: ChannelPreset,
     user: str,
@@ -355,8 +421,8 @@ def _call_groq(
         prompt = user if attempt == 0 else user + json_retry_hint
         temp = temperature if attempt == 0 else min(temperature, 0.45)
         try:
-            resp = client.chat.completions.create(
-                model=GROQ_MODEL,
+            resp = _create_with_fallback(
+                client,
                 messages=[
                     {"role": "system", "content": preset["groq_system_hint"]},
                     {"role": "user", "content": prompt},
