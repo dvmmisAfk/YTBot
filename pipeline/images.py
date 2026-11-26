@@ -1,6 +1,13 @@
-"""Image generation: DeAPI.ai (paid) or Pollinations.ai (free, no key needed)."""
+"""Image generation providers, tried in order:
+
+1. Cloudflare Workers AI (FLUX-1-schnell) — FREE: 10,000 neurons/day (~57 images/day)
+   on a free Cloudflare account, no card. Needs CF_ACCOUNT_ID + CF_API_TOKEN.
+2. DeAPI.ai (paid) — needs DEAPI_TOKEN.
+3. Pollinations.ai — POLLINATIONS_API_KEY (needs balance), else anonymous (a few images per IP).
+"""
 from __future__ import annotations
 
+import base64
 import os
 import random
 import time
@@ -28,6 +35,38 @@ DEFAULT_NEGATIVE = (
 def full_visual_prompt(scene: str, style_suffix: str | None = None) -> str:
     """Combine the scene description with a channel-specific style suffix."""
     return f"{scene.strip()}{(style_suffix or STYLE_SUFFIX)}"
+
+
+CF_FLUX_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
+
+
+def _cloudflare_generate(prompt: str, *, account_id: str, api_token: str, retries: int = 3) -> bytes:
+    """FLUX-1-schnell on Cloudflare Workers AI. Returns JPEG bytes (1024x1024)."""
+    steps = max(1, min(8, int(os.environ.get("CF_FLUX_STEPS", "4"))))
+    url = CF_FLUX_URL.format(account=account_id)
+    headers = {"Authorization": f"Bearer {api_token}"}
+    payload = {"prompt": prompt[:2048], "steps": steps, "seed": random.randint(1, 2**31 - 1)}
+    with httpx.Client(timeout=120.0) as client:
+        for attempt in range(1, retries + 1):
+            resp = client.post(url, json=payload, headers=headers)
+            if resp.status_code in (401, 403):
+                raise RuntimeError(f"Cloudflare rejected CF_API_TOKEN/CF_ACCOUNT_ID (HTTP {resp.status_code})")
+            if resp.status_code == 429 or (resp.status_code >= 400 and "neurons" in resp.text.lower()):
+                raise RuntimeError(f"Cloudflare daily free allowance used up (HTTP {resp.status_code}): {resp.text[:200]}")
+            if resp.status_code >= 500 and attempt < retries:
+                print(f"      Cloudflare retry {attempt}/{retries} after HTTP {resp.status_code}")
+                time.sleep(5 * attempt)
+                continue
+            if resp.status_code >= 400:
+                raise RuntimeError(f"Cloudflare HTTP {resp.status_code}: {resp.text[:300]}")
+            if resp.headers.get("content-type", "").startswith("image/"):
+                return resp.content
+            data = resp.json()
+            img = (data.get("result") or {}).get("image")
+            if not data.get("success", True) or not img:
+                raise RuntimeError(f"Cloudflare returned no image: {str(data)[:300]}")
+            return base64.b64decode(img)
+    raise RuntimeError("Cloudflare: all retries exhausted")
 
 
 def _deapi_generate(
@@ -182,10 +221,21 @@ def save_scene_image(
 ) -> tuple[str, str]:
     """Generate and save one image. Returns (status, detail).
 
-    Uses DeAPI if DEAPI_TOKEN is set, otherwise falls back to Pollinations.ai (free).
+    Provider order: Cloudflare Workers AI (free) → DeAPI → Pollinations.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    errors: list[str] = []
+
+    cf_account = os.environ.get("CF_ACCOUNT_ID", "").strip()
+    cf_token = os.environ.get("CF_API_TOKEN", "").strip()
+    if cf_account and cf_token:
+        try:
+            out_path.write_bytes(_cloudflare_generate(prompt, account_id=cf_account, api_token=cf_token))
+            return "ok", "cloudflare"
+        except Exception as e:
+            errors.append(f"cloudflare: {e}")
+            print(f"      Cloudflare failed, trying next provider: {e}")
 
     api_key = os.environ.get("DEAPI_TOKEN", "").strip()
 
@@ -202,12 +252,15 @@ def save_scene_image(
             out_path.write_bytes(img_bytes)
             return "ok", "deapi"
         except Exception as e:
+            errors.append(f"deapi: {e}")
             print(f"      DeAPI failed, falling back to Pollinations: {e}")
 
-    # Free fallback — no key needed
     try:
         img_bytes = _pollinations_generate(prompt, width=width, height=height)
         out_path.write_bytes(img_bytes)
         return "ok", "pollinations"
     except Exception as e:
-        return "fail", str(e)
+        errors.append(f"pollinations: {e}")
+        if not (cf_account and cf_token):
+            errors.append("hint: set CF_ACCOUNT_ID + CF_API_TOKEN for free Cloudflare Workers AI images")
+        return "fail", " | ".join(errors)
