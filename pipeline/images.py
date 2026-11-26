@@ -45,7 +45,7 @@ def _cloudflare_generate(prompt: str, *, account_id: str, api_token: str, retrie
     steps = max(1, min(8, int(os.environ.get("CF_FLUX_STEPS", "4"))))
     url = CF_FLUX_URL.format(account=account_id)
     headers = {"Authorization": f"Bearer {api_token}"}
-    payload = {"prompt": prompt[:2048], "steps": steps, "seed": random.randint(1, 2**31 - 1)}
+    payload = {"prompt": prompt[:2048], "steps": steps}  # model schema allows only prompt + steps
     with httpx.Client(timeout=120.0) as client:
         for attempt in range(1, retries + 1):
             resp = client.post(url, json=payload, headers=headers)
