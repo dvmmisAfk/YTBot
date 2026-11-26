@@ -123,19 +123,45 @@ def _pollinations_generate(
     seed: int | None = None,
     retries: int = 3,
 ) -> bytes:
-    """Fetch an image from Pollinations.ai — completely free, no API key."""
+    """Fetch an image from Pollinations.ai.
+
+    With POLLINATIONS_API_KEY set (create one at enter.pollinations.ai) this uses the
+    keyed gen.pollinations.ai endpoint. Without a key it uses the anonymous endpoint,
+    which only allows a few images per IP before answering 402 Payment Required.
+    """
     encoded = urllib.parse.quote(prompt)
     s = seed if seed is not None else random.randint(1, 999999)
-    url = (
-        f"https://image.pollinations.ai/prompt/{encoded}"
-        f"?width={width}&height={height}&seed={s}&nologo=true&enhance=false"
-    )
-    with httpx.Client(timeout=120.0) as client:
+    key = os.environ.get("POLLINATIONS_API_KEY", "").strip()
+    model = os.environ.get("POLLINATIONS_MODEL", "flux").strip() or "flux"
+    if key:
+        url = (
+            f"https://gen.pollinations.ai/image/{encoded}"
+            f"?model={model}&width={width}&height={height}&seed={s}&nologo=true&enhance=false"
+        )
+        headers = {"Authorization": f"Bearer {key}"}
+    else:
+        url = (
+            f"https://image.pollinations.ai/prompt/{encoded}"
+            f"?width={width}&height={height}&seed={s}&nologo=true&enhance=false"
+        )
+        headers = {}
+    with httpx.Client(timeout=120.0, follow_redirects=True) as client:
         for attempt in range(1, retries + 1):
             try:
-                resp = client.get(url)
+                resp = client.get(url, headers=headers)
+                if resp.status_code in (401, 402, 403):
+                    hint = (
+                        "Pollinations rejected the API key or its balance is empty (top up at enter.pollinations.ai)"
+                        if key else
+                        "Pollinations now needs an API key: set POLLINATIONS_API_KEY or DEAPI_TOKEN"
+                    )
+                    raise RuntimeError(f"{hint} (HTTP {resp.status_code})")
                 resp.raise_for_status()
+                if not resp.headers.get("content-type", "").startswith("image/"):
+                    raise RuntimeError(f"Pollinations returned {resp.headers.get('content-type')!r}, not an image")
                 return resp.content
+            except RuntimeError:
+                raise  # auth/billing problems won't fix themselves with a retry
             except Exception as exc:
                 if attempt == retries:
                     raise
