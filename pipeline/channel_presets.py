@@ -44,7 +44,7 @@ PRESETS: dict[str, ChannelPreset] = {
     "world_facts": {
         "id": "world_facts",
         "label": "World & culture facts Short",
-        "renderer": "motion",
+        "renderer": "slideshow",
         "min_words": 60,
         "tts_voice": "en-US-GuyNeural",
         "caption_font": "Arial.ttf",
