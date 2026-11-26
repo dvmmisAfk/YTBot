@@ -12,7 +12,7 @@ import re
 import time
 from typing import Any
 
-from groq import BadRequestError, Groq, NotFoundError
+from groq import BadRequestError, Groq, NotFoundError, RateLimitError
 
 from pipeline.channel_presets import ChannelPreset
 from pipeline.story_history import history_prompt_block
@@ -383,18 +383,68 @@ def _create_with_fallback(client: Groq, **kwargs: Any):
             call_kwargs["reasoning_effort"] = "low"
             call_kwargs["max_tokens"] = max(call_kwargs.get("max_tokens", 0), 4096)
         try:
-            resp = client.chat.completions.create(model=model, **call_kwargs)
+            resp = _create_rate_limited(client, model, call_kwargs)
             if model != GROQ_MODEL and _active_model != model:
                 print(f"[groq] model '{GROQ_MODEL}' unavailable - using '{model}'")
             _active_model = model
             return resp
-        except NotFoundError as exc:
-            print(f"[groq] model '{model}' not found, trying next...")
+        except (NotFoundError, _QuotaExhausted) as exc:
+            why = "quota exhausted" if isinstance(exc, _QuotaExhausted) else "not found"
+            print(f"[groq] model '{model}' {why}, trying next...")
             _dead_models.add(model)
             if _active_model == model:
                 _active_model = None
             last_exc = exc
     raise RuntimeError(f"No usable Groq model found (tried: {', '.join(candidates)})") from last_exc
+
+
+class _QuotaExhausted(Exception):
+    """Rate limit that won't clear within this run (e.g. tokens-per-day)."""
+
+
+def _retry_after_seconds(exc: RateLimitError) -> float:
+    headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+    try:
+        return float(headers.get("retry-after", "") or 0)
+    except ValueError:
+        return 0.0
+
+
+def _create_rate_limited(client: Groq, model: str, kwargs: dict[str, Any]):
+    """Retry per-minute limits (free tier is ~8k tokens/min); give up on daily limits."""
+    for attempt in range(6):
+        try:
+            return client.chat.completions.create(model=model, **kwargs)
+        except RateLimitError as exc:
+            wait = _retry_after_seconds(exc)
+            msg = str(exc).lower()
+            if "per day" in msg or "(tpd)" in msg or "(rpd)" in msg or wait > 180:
+                raise _QuotaExhausted(str(exc)) from exc
+            wait = min(max(wait, 10.0 * (attempt + 1)), 90.0)
+            print(f"[groq] rate limited on '{model}', waiting {wait:.0f}s...")
+            time.sleep(wait)
+    raise _QuotaExhausted(f"still rate limited on {model} after retries")
+
+
+def chat_text(
+    system: str,
+    user: str,
+    *,
+    max_tokens: int = 4096,
+    temperature: float = 0.7,
+) -> str:
+    """Plain-text completion (used for writing animated scene code)."""
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not set.")
+    client = Groq(api_key=api_key)
+    resp = _create_with_fallback(
+        client,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return resp.choices[0].message.content or ""
 
 
 def _call_groq(

@@ -37,12 +37,14 @@ class ChannelPreset(TypedDict, total=False):
     yt_token_env: str
     extra_yt_token_envs: list[str]
     description_hashtags: list[str]
+    renderer: str  # "slideshow" (default) or "motion"
 
 
 PRESETS: dict[str, ChannelPreset] = {
     "world_facts": {
         "id": "world_facts",
         "label": "World & culture facts Short",
+        "renderer": "motion",
         "min_words": 60,
         "tts_voice": "en-US-GuyNeural",
         "caption_font": "Arial.ttf",

@@ -112,12 +112,104 @@ def _render_and_upload(
     return video_path
 
 
+def _render_motion_and_upload(
+    *,
+    narration: str,
+    title: str,
+    description: str,
+    voice: str | None,
+    run_dir: Path,
+    upload: bool,
+    privacy: str,
+    yt_token_env: str = "YT_REFRESH_TOKEN",
+) -> Path:
+    """Render an animated HyperFrames Short (word-synced TTS + AI scenes). Optionally upload."""
+    from pipeline import motion_video
+    from pipeline.edge_tts_synth import synthesize_with_words
+
+    print("\n━━━ Motion renderer ━━━")
+    audio_path = run_dir / "voiceover.mp3"
+    print(f"② Edge TTS with word timings ({voice or 'default'})…")
+    total_dur, words, sentences = synthesize_with_words(narration, audio_path, voice=voice)
+    print(f"   Audio: {total_dur:.1f}s ({len(words)} words, {len(sentences)} sentences)")
+    if total_dur > 33:
+        print(f"   ⚠ Audio is {total_dur:.0f}s — target is 28-32s")
+
+    video_path = run_dir / "short.mp4"
+    print("③ HyperFrames: authoring + rendering motion scenes…")
+    motion_video.build_motion_short(
+        words=words,
+        vo_path=audio_path,
+        vo_dur=total_dur,
+        title=title,
+        narration=narration,
+        bgm_path=REPO_ROOT / "dobb.mp3",
+        run_dir=run_dir,
+        out_mp4=video_path,
+    )
+    print(f"   → {video_path}")
+
+    if upload:
+        from pipeline.youtube_upload import upload_short
+        print(f"⑥ YouTube: uploading ({yt_token_env})…")
+        vid = upload_short(
+            video_path, title, description,
+            privacy_status=privacy,
+            refresh_token_env=yt_token_env,
+        )
+        print(f"   Uploaded! https://www.youtube.com/shorts/{vid}")
+    else:
+        print("   (skip upload — pass --upload)")
+    return video_path
+
+
+def _finish(
+    args: argparse.Namespace,
+    preset: dict,
+    pack: dict,
+    history_title: str,
+    history_narration: str,
+    primary_video_path: Path | None,
+    myth_theme: str | None,
+    myth_topic: str | None,
+) -> None:
+    """History, myth-topic commit, and extra-channel uploads (shared by every renderer)."""
+    summary = " ".join(history_narration.split()[:25]) + "…"
+    save_title(args.channel, history_title, summary)
+
+    if myth_theme and myth_topic:
+        from pipeline.myth_topics import commit_myth_topic
+
+        commit_myth_topic(args.channel, myth_theme, myth_topic)
+
+    # Optional second upload: same rendered MP4 to extra channels (e.g. second bhakti channel).
+    # Uses env var names listed in preset["extra_yt_token_envs"].
+    extra_envs = preset.get("extra_yt_token_envs") or []
+    if args.upload and primary_video_path and extra_envs:
+        from pipeline.youtube_upload import upload_short
+
+        for env_name in extra_envs:
+            print(f"⑦ Extra YouTube upload ({env_name})…")
+            vid_extra = upload_short(
+                primary_video_path,
+                history_title,
+                pack.get("youtube_description", ""),
+                privacy_status=args.privacy,
+                refresh_token_env=env_name,
+            )
+            print(f"   Extra channel video: https://www.youtube.com/shorts/{vid_extra}")
+
+    print("\n✓ Done.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate & optionally upload a YouTube Short.")
     ap.add_argument("--channel", required=True, choices=list_channel_ids())
     ap.add_argument("--topic", default="", help="Optional topic hint for Groq.")
     ap.add_argument("--upload", action="store_true", help="Upload to YouTube after render.")
     ap.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
+    ap.add_argument("--renderer", choices=["slideshow", "motion"], default=None,
+                    help="Override the preset's renderer (default: preset, then SHORT_RENDERER env).")
     args = ap.parse_args()
 
     preset = get_preset(args.channel)
@@ -177,6 +269,24 @@ def main() -> None:
         print(f"   Narration: {word_count} words, {len(image_prompts)} image prompts")
         history_title = title
         history_narration = narration
+
+    renderer = (args.renderer or os.environ.get("SHORT_RENDERER") or preset.get("renderer") or "slideshow").lower()
+    if renderer == "motion":
+        if variants:
+            raise SystemExit("The motion renderer supports single-language presets only.")
+        primary_video_path = _render_motion_and_upload(
+            narration=narration,
+            title=title,
+            description=pack.get("youtube_description", ""),
+            voice=preset.get("tts_voice") or os.environ.get("EDGE_TTS_VOICE"),
+            run_dir=run_dir,
+            upload=args.upload,
+            privacy=args.privacy,
+            yt_token_env=preset.get("yt_token_env") or "YT_REFRESH_TOKEN",
+        )
+        _finish(args, preset, pack, history_title, history_narration, primary_video_path,
+                myth_theme_for_commit, myth_topic_for_commit)
+        return
 
     # ── 2. Images via DeAPI (generated ONCE, shared by all variants) ──
     w = int(os.environ.get("DEAPI_IMAGE_WIDTH", "768"))
@@ -242,33 +352,9 @@ def main() -> None:
             yt_token_env=preset.get("yt_token_env") or "YT_REFRESH_TOKEN",
         )
 
-    # ── 7. History ───────────────────────────────────────────────────
-    summary = " ".join(history_narration.split()[:25]) + "…"
-    save_title(args.channel, history_title, summary)
-
-    if myth_theme_for_commit and myth_topic_for_commit:
-        from pipeline.myth_topics import commit_myth_topic
-
-        commit_myth_topic(args.channel, myth_theme_for_commit, myth_topic_for_commit)
-
-    # Optional second upload: same rendered MP4 to extra channels (e.g. second bhakti channel).
-    # Uses env var names listed in preset["extra_yt_token_envs"].
-    extra_envs = preset.get("extra_yt_token_envs") or []
-    if args.upload and primary_video_path and extra_envs:
-        from pipeline.youtube_upload import upload_short
-
-        for env_name in extra_envs:
-            print(f"⑦ Extra YouTube upload ({env_name})…")
-            vid_extra = upload_short(
-                primary_video_path,
-                history_title,
-                pack.get("youtube_description", ""),
-                privacy_status=args.privacy,
-                refresh_token_env=env_name,
-            )
-            print(f"   Extra channel video: https://www.youtube.com/shorts/{vid_extra}")
-
-    print("\n✓ Done.")
+    # ── 7. History + extras ──────────────────────────────────────────
+    _finish(args, preset, pack, history_title, history_narration, primary_video_path,
+            myth_theme_for_commit, myth_topic_for_commit)
 
 
 if __name__ == "__main__":
