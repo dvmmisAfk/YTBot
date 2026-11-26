@@ -1,5 +1,10 @@
 # Session handoff — HyperFrames motion-graphics renderer
 
+> **SHELVED (2026-11-26):** The user found the motion output not good enough. world_facts is back on the DeAPI
+> image slideshow (`"renderer": "slideshow"`). The workflow is restored to public uploads, 8 a day. The motion code
+> is still in the repo (`pipeline/motion_*.py`) and still runs with `--renderer motion` or `SHORT_RENDERER=motion`,
+> but nothing uses it. Everything below is history for anyone who picks it up again.
+
 _Last updated: 2026-11-26. Read this first when you pick the work back up._
 
 ## Goal
